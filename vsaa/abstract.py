@@ -163,4 +163,16 @@ class DoubleRater(SingleRater):
 
 
 class Antialiaser(DoubleRater, SuperSampler):
-    ...
+    def scale(
+        self, clip: vs.VideoNode, width: int, height: int, shift: tuple[float, float] = (0, 0), **kwargs: Any
+    ) -> vs.VideoNode:
+        """Scale with this antialiaser"""
+        return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
+
+    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
+        """Single rate aa with this antialiaser"""
+        return SingleRater.aa(self, clip, y, x, **kwargs)
+
+    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
+        """Double rate aa with this antialiaser"""
+        return DoubleRater.aa(self, clip, y, x, **kwargs)
