@@ -3,7 +3,7 @@ from typing import Any
 
 import vapoursynth as vs
 
-from ..abstract import _Antialiaser, Antialiaser, DoubleRater, SingleRater, SuperSampler
+from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 
 __all__ = ['SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR']
 

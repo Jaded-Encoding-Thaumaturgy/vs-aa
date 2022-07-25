@@ -4,7 +4,7 @@ from typing import Any
 
 import vapoursynth as vs
 
-from ..abstract import _Antialiaser, _FullInterpolate, Antialiaser, DoubleRater, SingleRater, SuperSampler
+from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser, _FullInterpolate
 
 __all__ = ['Eedi2', 'Eedi2SS', 'Eedi2SR', 'Eedi2DR']
 
