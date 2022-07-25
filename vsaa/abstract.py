@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any
+from typing import Any, Callable
 
 import vapoursynth as vs
 from vskernels import Catrom, Kernel
@@ -146,7 +146,10 @@ class SingleRater(_Antialiaser):
         return upscaled
 
 
+@dataclass(kw_only=True)
 class DoubleRater(SingleRater):
+    merge_func: Callable[[vs.VideoNode, vs.VideoNode], vs.VideoNode] = core.std.Merge
+
     def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
         clip = self.preprocess_clip(clip)
 
@@ -159,7 +162,7 @@ class DoubleRater(SingleRater):
 
         self.field = original_field
 
-        return aa0.std.Merge(aa1)
+        return self.merge_func(aa0, aa1)
 
 
 class Antialiaser(DoubleRater, SuperSampler):
