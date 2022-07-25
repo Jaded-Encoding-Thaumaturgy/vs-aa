@@ -1,6 +1,6 @@
 """VapourSynth anti aliasing and scaling functions"""
 
-__version__ = '0.0.0'
+__version__ = '0.0.1'
 
 __author__ = 'Setsugen no ao <setsugen@setsugen.dev>'
 __maintainer__ = __author__
