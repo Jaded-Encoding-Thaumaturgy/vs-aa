@@ -64,7 +64,7 @@ def upscaled_sraa(
     return join([aa_y, *chroma], clip.format.color_family)
 
 
-def taa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
+def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
     """
     Perform transposed AA.
 
@@ -174,8 +174,8 @@ def masked_clamp_aa(
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
         strong_aa.opencl = opencl  # type: ignore
 
-    weak = taa(work_clip, weak_aa)
-    strong = taa(work_clip, strong_aa)
+    weak = transpose_aa(work_clip, weak_aa)
+    strong = transpose_aa(work_clip, strong_aa)
 
     clamped = clamp_aa(work_clip, weak, strong, strength)
 
