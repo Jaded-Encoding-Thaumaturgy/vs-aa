@@ -23,7 +23,11 @@ class ZNEDI3(_Antialiaser):
         return NNEDI3.get_aa_args(self, clip, **kwargs)  # type: ignore
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        return core.znedi3.nnedi3(clip, self.field, double_y, **kwargs)
+        interpolated = core.znedi3.nnedi3(
+            clip, self.field, double_y or not self.drop_fields, **kwargs
+        )
+
+        return self._shift_interpolated(clip, interpolated, double_y)
 
     _shift = 0.5
 

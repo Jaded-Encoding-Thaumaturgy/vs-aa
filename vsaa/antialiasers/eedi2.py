@@ -34,16 +34,18 @@ class EEDI2(_FullInterpolate, _Antialiaser):
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         if self.cuda:
-            clip = core.eedi2cuda.EEDI2(clip, self.field, **kwargs)
+            interpolated = core.eedi2cuda.EEDI2(clip, self.field, **kwargs)
         else:
-            clip = core.eedi2.EEDI2(clip, self.field, **kwargs)
+            interpolated = core.eedi2.EEDI2(clip, self.field, **kwargs)
 
         if double_y:
-            return clip
+            return interpolated
+        elif self.drop_fields:
+            interpolated = interpolated.std.SeparateFields(not self.field)[::2]
 
-        clip = clip.std.SeparateFields(not self.field)[::2]
+            return self.shifter.shift(interpolated, (0.5 - 0.75 * self.field, 0))
 
-        return self.shifter.shift(clip, (0.5 - 0.75 * self.field, 0))
+        return self.shifter.scale(interpolated, clip.width, clip.height, (self._shift * int(not self.field), 0))
 
     def _full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         return core.eedi2cuda.Enlarge2(clip, **kwargs)

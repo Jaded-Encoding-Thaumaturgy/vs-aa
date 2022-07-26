@@ -36,11 +36,15 @@ class EEDI3(_Antialiaser):
             else:
                 sclip_args |= self.sclip_aa.get_sr_args(clip, **kwargs)
 
-            sclip = self.sclip_aa._interpolate(clip, double_y, )
+            sclip = self.sclip_aa._interpolate(clip, double_y or not self.drop_fields)
         else:
             sclip = None
 
-        return core.eedi3m.EEDI3(clip, self.field, double_y, sclip=sclip, **kwargs)
+        interpolated = core.eedi3m.EEDI3(
+            clip, self.field, double_y or not self.drop_fields, sclip=sclip, **kwargs
+        )
+
+        return self._shift_interpolated(clip, interpolated, double_y)
 
     _shift = 0.5
 

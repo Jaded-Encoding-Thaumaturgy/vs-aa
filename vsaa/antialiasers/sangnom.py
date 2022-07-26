@@ -24,7 +24,11 @@ class SANGNOM(_Antialiaser):
         return dict(aa=self.aa_strength, order=0 if self.double_fps else self.field + 1)
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        return core.sangnom.SangNom(clip, dh=double_y, **kwargs)
+        interpolated = core.sangnom.SangNom(
+            clip, dh=double_y or not self.drop_fields, **kwargs
+        )
+
+        return self._shift_interpolated(clip, interpolated, double_y)
 
     _shift = -0.5
 

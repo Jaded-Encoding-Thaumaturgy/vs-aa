@@ -21,6 +21,7 @@ class _SingleInterpolate:
 @dataclass
 class _Antialiaser(_SingleInterpolate):
     field: int = dc_field(default=0, kw_only=True)
+    drop_fields: bool = dc_field(default=True, kw_only=True)
     transpose_first: bool = dc_field(default=False, kw_only=True)
     shifter: Kernel = dc_field(default=Catrom(), kw_only=True)
 
@@ -29,6 +30,16 @@ class _Antialiaser(_SingleInterpolate):
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return {}
+
+    def _shift_interpolated(self, clip: vs.VideoNode, inter: vs.VideoNode, double_y: bool) -> vs.VideoNode:
+        if double_y:
+            return inter
+        elif self.drop_fields:
+            return inter
+
+        return self.shifter.scale(
+            inter, clip.width, clip.height, (self._shift * int(not self.field), 0)
+        )
 
 
 class _FullInterpolate(_SingleInterpolate):
