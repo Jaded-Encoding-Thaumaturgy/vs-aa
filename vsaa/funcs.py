@@ -1,8 +1,8 @@
 import vapoursynth as vs
 from vsexprtools.util import PlanesT, norm_expr_planes, normalise_planes
-from vskernels import Catrom, Kernel
+from vskernels import Catrom, Kernel, Spline144
 from vsmask.edge import EdgeDetect, ScharrTCanny
-from vsrgtools import box_blur, median_clips
+from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vsutil import get_depth, get_peak_value, get_w, join, scale_value, split
 
 from .abstract import SingleRater, SuperSampler
@@ -179,3 +179,38 @@ def masked_clamp_aa(
         return merged
 
     return join([merged, *chroma], clip.format.color_family)
+
+
+def fine_aa(
+    clip: vs.VideoNode, taa: bool = False,
+    singlerater: SingleRater = Eedi3SR(),
+    rep: int | RepairMode = RepairMode.LINE_CLIP_STRONG
+) -> vs.VideoNode:
+    """
+    Taa and optionally repair clip that results in overall lighter anti-aliasing, downscaled with Spline kernel.
+
+    :param clip:            Clip to process.
+    :param singlerater:     Singlerater used for aa.
+    :param rep:             Repair mode.
+
+    :return:                Antialiased clip.
+    """
+    assert clip.format
+
+    singlerater.shifter = Spline144()
+
+    work_clip, *chroma = split(clip)
+
+    if taa:
+        aa = transpose_aa(work_clip, singlerater)
+    else:
+        aa = singlerater.aa(work_clip, AADirection.BOTH)
+
+    contra = contrasharpening_median(work_clip, aa)
+
+    repaired = repair(contra, work_clip, rep)
+
+    if not chroma:
+        return repaired
+
+    return join([repaired, *chroma], clip.format.color_family)
