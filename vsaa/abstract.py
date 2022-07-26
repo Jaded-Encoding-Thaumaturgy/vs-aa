@@ -213,10 +213,15 @@ class Antialiaser(DoubleRater, SuperSampler):
         self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
     ) -> vs.VideoNode:
         """Single rate aa with this antialiaser"""
+
         if isinstance(y_or_dir, AADirection):
-            return SingleRater.aa(self, clip, y_or_dir, **kwargs)
+            y, x = y_or_dir.to_yx()
         else:
-            return SingleRater.aa(self, clip, y_or_dir, x, **kwargs)
+            y = y_or_dir
+
+        clip = self.preprocess_clip(clip)
+
+        return SingleRater._aa(self, clip, y, x, **kwargs)
 
     @overload
     def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
@@ -230,7 +235,12 @@ class Antialiaser(DoubleRater, SuperSampler):
         self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
     ) -> vs.VideoNode:
         """Double rate aa with this antialiaser"""
+
         if isinstance(y_or_dir, AADirection):
-            return DoubleRater.aa(self, clip, y_or_dir, **kwargs)
+            y, x = y_or_dir.to_yx()
         else:
-            return DoubleRater.aa(self, clip, y_or_dir, x, **kwargs)
+            y = y_or_dir
+
+        clip = self.preprocess_clip(clip)
+
+        return DoubleRater._aa(self, clip, y, x, **kwargs)
