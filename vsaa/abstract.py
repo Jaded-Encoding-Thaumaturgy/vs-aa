@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any, Callable
+from typing import Any, Callable, overload
 
 import vapoursynth as vs
 from vskernels import Catrom, Kernel
 from vskernels.kernels import Scaler
+
+from .enums import AADirection
 
 core = vs.core
 
@@ -128,9 +130,27 @@ class SingleRater(_Antialiaser):
     def get_sr_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return {}
 
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
+    @overload
+    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+        ...
+
+    @overload
+    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+        ...
+
+    def aa(
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+    ) -> vs.VideoNode:
+        if isinstance(y_or_dir, AADirection):
+            y, x = y_or_dir.to_yx()
+        else:
+            y = y_or_dir
+
         clip = self.preprocess_clip(clip)
 
+        return self._aa(clip, y, x, **kwargs)
+
+    def _aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
         kwargs = self.get_aa_args(clip, **kwargs) | self.get_sr_args(clip, **kwargs) | kwargs
 
         upscaled = clip
@@ -161,9 +181,7 @@ class SingleRater(_Antialiaser):
 class DoubleRater(SingleRater):
     merge_func: Callable[[vs.VideoNode, vs.VideoNode], vs.VideoNode] = core.std.Merge
 
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
-        clip = self.preprocess_clip(clip)
-
+    def _aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
         original_field = int(self.field)
 
         self.field = 0
@@ -183,10 +201,36 @@ class Antialiaser(DoubleRater, SuperSampler):
         """Scale with this antialiaser"""
         return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
 
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
-        """Single rate aa with this antialiaser"""
-        return SingleRater.aa(self, clip, y, x, **kwargs)
+    @overload
+    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+        ...
 
-    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
+    @overload
+    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+        ...
+
+    def aa(
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+    ) -> vs.VideoNode:
+        """Single rate aa with this antialiaser"""
+        if isinstance(y_or_dir, AADirection):
+            return SingleRater.aa(self, clip, y_or_dir, **kwargs)
+        else:
+            return SingleRater.aa(self, clip, y_or_dir, x, **kwargs)
+
+    @overload
+    def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+        ...
+
+    @overload
+    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+        ...
+
+    def draa(
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+    ) -> vs.VideoNode:
         """Double rate aa with this antialiaser"""
-        return DoubleRater.aa(self, clip, y, x, **kwargs)
+        if isinstance(y_or_dir, AADirection):
+            return DoubleRater.aa(self, clip, y_or_dir, **kwargs)
+        else:
+            return DoubleRater.aa(self, clip, y_or_dir, x, **kwargs)
