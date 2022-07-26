@@ -59,3 +59,26 @@ def upscaled_sraa(
         return aa_y
 
     return join([aa_y, *chroma], clip.format.color_family)
+
+
+def taa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
+    """
+    Perform transposed AA.
+
+    :param clip:        Clip to process.
+    :param aafun:       Antialiasing function.
+    :return:            Antialiased clip.
+    """
+    assert clip.format
+
+    work_clip, *chroma = split(clip)
+
+    aafunc.transpose_first = True
+    aafunc.drop_fields = False
+
+    aa_y = aafunc.aa(work_clip, AADirection.BOTH)
+
+    if not chroma:
+        return aa_y
+
+    return join([aa_y, *chroma], clip.format.color_family)
