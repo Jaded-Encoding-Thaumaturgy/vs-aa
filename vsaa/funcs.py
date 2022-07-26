@@ -93,11 +93,8 @@ def clamp_aa(
 ) -> vs.VideoNode:
     """
     Clamp stronger AAs to weaker AAs.
-    Useful for clamping :py:func:`upscaled_sraa` or :py:func:`Eedi3SR` to :py:func:`Nnedi3SR`
-    for a strong but more precise AA.
-
-    Original function written by `Zastin <https://github.com/kgrabs>`_,
-    modified by LightArrowsEXE, Setsugen no ao.
+    Useful for clamping :py:func:`upscaled_sraa` or :py:func:`Eedi3SR`
+    to :py:func:`Nnedi3SR` for a strong but more precise AA.
 
     :param src:         Non-AA'd source clip.
     :param weak:        Weakly-AA'd clip.
@@ -132,9 +129,6 @@ def masked_clamp_aa(
 ) -> vs.VideoNode:
     """
     Clamp a strong aa to a weaker one for the purpose of reducing the stronger's artifacts.
-
-    Original function written by `Zastin <https://github.com/kgrabs>`_,
-    modified by LightArrowsEXE, Setsugen no ao.
 
     :param clip:                Clip to process.
     :param strength:            Set threshold strength for over/underflow value for clamping.
