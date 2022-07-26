@@ -123,3 +123,65 @@ def clamp_aa(
 
     return core.akarin.Expr([src, weak, strong], norm_expr_planes(src, expr, planes))
 
+
+def masked_clamp_aa(
+    clip: vs.VideoNode, strength: float = 1,
+    mthr: float = 0.25, mask: vs.VideoNode | EdgeDetect | None = None,
+    weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
+    opencl: bool | None = True
+) -> vs.VideoNode:
+    """
+    Clamp a strong aa to a weaker one for the purpose of reducing the stronger's artifacts.
+
+    Original function written by `Zastin <https://github.com/kgrabs>`_,
+    modified by LightArrowsEXE, Setsugen no ao.
+
+    :param clip:                Clip to process.
+    :param strength:            Set threshold strength for over/underflow value for clamping.
+    :param mthr:                Binarize threshold for the mask, float.
+    :param mask:                Clip to use for custom mask or an EdgeDetect to use custom masker.
+    :param weak_aa:             SingleRater for the weaker aa.
+    :param strong_aa:           SingleRater for the stronger aa.
+    :param opencl:              Wheter to force OpenCL acceleration, None to leave as is.
+
+    :return:                    Antialiased clip.
+    """
+    assert clip.format
+
+    work_clip, *chroma = split(clip)
+
+    if mask is None:
+        mask = ScharrTCanny()
+
+    if isinstance(mask, EdgeDetect):
+        bin_thr = scale_value(mthr, 32, get_depth(clip))
+
+        mask = mask.edgemask(work_clip)
+        mask = mask.std.Binarize(bin_thr)
+        mask = mask.std.Maximum()
+        mask = box_blur(mask)
+        mask = mask.std.Minimum().std.Deflate()
+
+    if weak_aa is None:
+        weak_aa = Nnedi3SR(
+            opencl=hasattr(core, 'nnedi3cl') if opencl is None else opencl
+        )
+    elif opencl is not None and hasattr(weak_aa, 'opencl'):
+        weak_aa.opencl = opencl  # type: ignore
+
+    if strong_aa is None:
+        strong_aa = Eedi3SR(opencl=opencl is None or opencl)
+    elif opencl is not None and hasattr(strong_aa, 'opencl'):
+        strong_aa.opencl = opencl  # type: ignore
+
+    weak = taa(work_clip, weak_aa)
+    strong = taa(work_clip, strong_aa)
+
+    clamped = clamp_aa(work_clip, weak, strong, strength)
+
+    merged = work_clip.std.MaskedMerge(clamped, mask)
+
+    if not chroma:
+        return merged
+
+    return join([merged, *chroma], clip.format.color_family)
