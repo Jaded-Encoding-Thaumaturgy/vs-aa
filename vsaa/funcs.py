@@ -1,11 +1,12 @@
 import vapoursynth as vs
 from vsexprtools.util import PlanesT, norm_expr_planes, normalise_planes
 from vskernels import Catrom, Kernel
-from vsutil import get_peak_value, get_w, join, split
+from vsmask.edge import EdgeDetect, ScharrTCanny
+from vsrgtools import box_blur, median_clips
+from vsutil import get_depth, get_peak_value, get_w, join, scale_value, split
 
 from .abstract import SingleRater, SuperSampler
-from .antialiasers import Eedi3SR, Nnedi3SS
-from vsrgtools import median_clips
+from .antialiasers import Eedi3SR, Nnedi3SR, Nnedi3SS
 from .enums import AADirection
 
 core = vs.core
@@ -99,9 +100,10 @@ def clamp_aa(
     modified by LightArrowsEXE, Setsugen no ao.
 
     :param src:         Non-AA'd source clip.
-    :param weak:        Weakly-AA'd clip (eg: :py:func:`lvsfunc.aa.nnedi3`).
-    :param strong:      Strongly-AA'd clip (eg: :py:func:`lvsfunc.aa.eedi3`).
-    :param strength:    Clamping strength (Default: 1).
+    :param weak:        Weakly-AA'd clip.
+    :param strong:      Strongly-AA'd clip.
+    :param strength:    Clamping strength.
+    :param planes:      Planes to process.
 
     :return:            Clip with clamped anti-aliasing.
     """
