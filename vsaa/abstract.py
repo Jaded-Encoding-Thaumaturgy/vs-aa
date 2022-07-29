@@ -6,7 +6,7 @@ from typing import Any, Callable, overload
 
 import vapoursynth as vs
 from vskernels import Catrom, Kernel
-from vskernels.kernels import Scaler
+from vskernels.kernels.abstract import Scaler
 
 from .enums import AADirection
 

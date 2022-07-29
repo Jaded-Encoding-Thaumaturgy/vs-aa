@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from typing import Any
 
 import vapoursynth as vs
-from vsaa.antialiasers.nnedi3 import NNEDI3
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
+from .nnedi3 import NNEDI3
 
 __all__ = ['Znedi3', 'Znedi3SS', 'Znedi3SR', 'Znedi3DR']
 
