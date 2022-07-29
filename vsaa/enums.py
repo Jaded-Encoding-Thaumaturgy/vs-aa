@@ -1,6 +1,10 @@
 from enum import IntEnum
 from typing import Tuple
 
+__all__ = [
+    'AADirection'
+]
+
 
 class AADirection(IntEnum):
     VERTICAL = 0

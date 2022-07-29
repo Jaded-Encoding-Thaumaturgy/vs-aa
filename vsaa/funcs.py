@@ -9,6 +9,10 @@ from .abstract import SingleRater, SuperSampler
 from .antialiasers import Eedi3SR, Nnedi3SR, Nnedi3SS
 from .enums import AADirection
 
+__all__ = [
+    'upscaled_sraa', 'transpose_aa', 'clamp_aa', 'masked_clamp_aa', 'fine_aa'
+]
+
 core = vs.core
 
 

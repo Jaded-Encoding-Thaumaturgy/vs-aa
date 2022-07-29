@@ -6,7 +6,9 @@ import vapoursynth as vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser, _FullInterpolate
 
-__all__ = ['Eedi2', 'Eedi2SS', 'Eedi2SR', 'Eedi2DR']
+__all__ = [
+    'Eedi2', 'Eedi2SS', 'Eedi2SR', 'Eedi2DR'
+]
 
 core = vs.core
 

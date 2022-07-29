@@ -5,7 +5,9 @@ import vapoursynth as vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 
-__all__ = ['SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR']
+__all__ = [
+    'SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR'
+]
 
 core = vs.core
 
