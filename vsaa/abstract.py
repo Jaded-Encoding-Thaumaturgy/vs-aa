@@ -26,6 +26,7 @@ class _Antialiaser(_SingleInterpolate):
     drop_fields: bool = dc_field(default=True, kw_only=True)
     transpose_first: bool = dc_field(default=False, kw_only=True)
     shifter: Kernel = dc_field(default=Catrom(), kw_only=True)
+    scaler: Scaler | None = dc_field(default=None, kw_only=True)
 
     def preprocess_clip(self, clip: vs.VideoNode) -> vs.VideoNode:
         return clip
@@ -39,9 +40,12 @@ class _Antialiaser(_SingleInterpolate):
         elif self.drop_fields:
             return inter
 
-        return self.shifter.scale(
-            inter, clip.width, clip.height, (self._shift * int(not self.field), 0)
-        )
+        shift = (self._shift * int(not self.field), 0)
+
+        if self.scaler:
+            return self.scaler.scale(inter, clip.width, clip.height, shift)
+
+        return self.shifter.scale(inter, clip.width, clip.height, shift)
 
 
 class _FullInterpolate(_SingleInterpolate):
@@ -122,6 +126,9 @@ class SuperSampler(_Antialiaser, Scaler):
             upscaled = self.shifter.shift(
                 upscaled, [topshift, ctopshift], [leftshift, cleftshift]
             )
+
+        if self.scaler:
+            return self.scaler.scale(upscaled, width, height, shift)
 
         return self.shifter.scale(upscaled, width, height, shift)
 
