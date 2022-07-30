@@ -21,10 +21,18 @@ def upscaled_sraa(
     width: int | None = None, height: int | None = None,
     ssfunc: SuperSampler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
     direction: AADirection = AADirection.BOTH,
-    downscaler: Kernel = Catrom()
+    downscaler: Kernel = Catrom(),
+    planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
-    :param clip:            Clip to process, only luma will be processed.
+    Super-sampled single-rate AA for heavy aliasing and broken line-art.
+
+    It works by super-sampling the clip, performing AA, and then downscaling again.
+    Downscaling can be disabled by setting `downscaler` to `None`, returning the super-sampled luma clip.
+    The dimensions of the downscaled clip can also be adjusted by setting `height` or `width`.
+    Setting either `height`, `width` or 1,2 in planes will also scale the chroma accordingly.
+
+    :param clip:            Clip to process.
     :param rfactor:         Image enlargement factor.
                             It is not recommended to go below 1.3
     :param width:           Target resolution width. If None, determined from `height`.
@@ -32,6 +40,7 @@ def upscaled_sraa(
     :param ssfunc:          Super-sampler used for upscaling before AA.
     :param aafunc:          Downscaler to use after super-sampling.
     :param aafun:           Function used to antialias after super-sampling.
+    :param planes:          Planes to do antialiasing on.
 
     :return:                Antialiased clip.
 
@@ -39,13 +48,7 @@ def upscaled_sraa(
     """
     assert clip.format
 
-    work_clip, *chroma = split(clip)
-
-    if rfactor <= 1:
-        raise ValueError('upscaled_sraa: rfactor must be above 1!')
-
-    ssw = (round(work_clip.width * rfactor) + 1) & ~1
-    ssh = (round(work_clip.height * rfactor) + 1) & ~1
+    planes = normalise_planes(clip, planes)
 
     if height is None:
         height = work_clip.height
@@ -56,16 +59,28 @@ def upscaled_sraa(
         else:
             width = get_w(height, aspect_ratio=clip.width / clip.height)
 
-    up_y = ssfunc.scale(work_clip, ssw, ssh)
+    aa_chroma = 1 in planes or 2 in planes
+    scale_chroma = ((clip.width, clip.height) != (width, height)) or aa_chroma
 
-    aa_y = aafunc.aa(up_y, *direction.to_yx())
+    work_clip, *chroma = [clip] if scale_chroma else split(clip)
+
+    if rfactor <= 1:
+        raise ValueError('upscaled_sraa: rfactor must be above 1!')
+
+    ssw = (round(work_clip.width * rfactor) + 1) & ~1
+    ssh = (round(work_clip.height * rfactor) + 1) & ~1
+
+    up = ssfunc.scale(work_clip, ssw, ssh)
+    up, *chroma = [up] if aa_chroma else (split(up) if scale_chroma else [up, *chroma])
+
+    aa = aafunc.aa(up, *direction.to_yx())
 
     if downscaler:
-        aa_y = downscaler.scale(aa_y, width, height)
-    elif not chroma or (clip.width, clip.height) != (width, height):
-        return aa_y
+        aa = downscaler.scale(aa, width, height)
+    elif not chroma:
+        return aa
 
-    return join([aa_y, *chroma], clip.format.color_family)
+    return join([aa, *chroma], clip.format.color_family)
 
 
 def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
