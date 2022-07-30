@@ -1,6 +1,6 @@
 import vapoursynth as vs
 from vsexprtools import PlanesT, norm_expr_planes, normalise_planes
-from vskernels import Catrom, Kernel, Spline144
+from vskernels import Catrom, Spline144
 from vskernels.kernels.abstract import Scaler
 from vsmask.edge import EdgeDetect, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
