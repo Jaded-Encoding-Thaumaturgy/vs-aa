@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import vapoursynth as vs
 from vsexprtools import PlanesT, norm_expr_planes, normalise_planes
 from vskernels import Catrom, Spline144
