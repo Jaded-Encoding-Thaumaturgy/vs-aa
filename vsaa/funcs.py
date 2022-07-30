@@ -1,6 +1,7 @@
 import vapoursynth as vs
 from vsexprtools import PlanesT, norm_expr_planes, normalise_planes
 from vskernels import Catrom, Kernel, Spline144
+from vskernels.kernels.abstract import Scaler
 from vsmask.edge import EdgeDetect, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vsutil import get_depth, get_peak_value, get_w, join, scale_value, split
@@ -21,7 +22,7 @@ def upscaled_sraa(
     width: int | None = None, height: int | None = None,
     ssfunc: SuperSampler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
     direction: AADirection = AADirection.BOTH,
-    downscaler: Kernel = Catrom(),
+    downscaler: Scaler = Catrom(),
     planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
