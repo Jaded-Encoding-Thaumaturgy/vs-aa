@@ -51,11 +51,11 @@ def upscaled_sraa(
     planes = normalise_planes(clip, planes)
 
     if height is None:
-        height = work_clip.height
+        height = clip.height
 
     if width is None:
-        if height == work_clip.height:
-            width = work_clip.width
+        if height == clip.height:
+            width = clip.width
         else:
             width = get_w(height, aspect_ratio=clip.width / clip.height)
 
@@ -209,6 +209,7 @@ def fine_aa(
     Taa and optionally repair clip that results in overall lighter anti-aliasing, downscaled with Spline kernel.
 
     :param clip:            Clip to process.
+    :param taa:             Whether to perform a normal or transposed aa
     :param singlerater:     Singlerater used for aa.
     :param rep:             Repair mode.
 
