@@ -73,7 +73,10 @@ class SuperSampler(_Antialiaser, Scaler):
     ) -> vs.VideoNode:
         clip = self.preprocess_clip(clip)
 
-        assert clip.format
+        assert clip.format and clip.width and clip.height
+
+        if (clip.width, clip.height) == (width, height):
+            return clip
 
         kwargs = self.get_aa_args(clip, **kwargs) | self.get_ss_args(clip, **kwargs) | kwargs
 
@@ -82,9 +85,6 @@ class SuperSampler(_Antialiaser, Scaler):
         mult_x, mult_y = (int(log2(divs)) for divs in (divw, divh))
 
         cdivw, cdivh = 1 << clip.format.subsampling_w, 1 << clip.format.subsampling_h
-
-        if ((divw < 1) or (divw < 1)) or divw == divh == 1:
-            raise ValueError(f'{self.__class__.__name__}.scale: width and height must be bigger than clip\'s size.')
 
         upscaled = clip
 
