@@ -200,9 +200,9 @@ class DoubleRater(SingleRater):
         original_field = int(self.field)
 
         self.field = 0
-        aa0 = super().aa(clip, y, x, **kwargs)
+        aa0 = super()._aa(clip, y, x, **kwargs)
         self.field = 1
-        aa1 = super().aa(clip, y, x, **kwargs)
+        aa1 = super()._aa(clip, y, x, **kwargs)
 
         self.field = original_field
 
