@@ -8,12 +8,15 @@ from vsmask.edge import EdgeDetect, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vsutil import get_depth, get_peak_value, get_w, join, scale_value, split
 
-from .abstract import SingleRater, SuperSampler
+from .abstract import SingleRater
 from .antialiasers import Eedi3SR, Nnedi3SR, Nnedi3SS
 from .enums import AADirection
 
 __all__ = [
-    'upscaled_sraa', 'transpose_aa', 'clamp_aa', 'masked_clamp_aa', 'fine_aa'
+    'upscaled_sraa',
+    'transpose_aa',
+    'clamp_aa', 'masked_clamp_aa',
+    'fine_aa'
 ]
 
 core = vs.core
@@ -24,8 +27,7 @@ def upscaled_sraa(
     width: int | None = None, height: int | None = None,
     ssfunc: Scaler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
     direction: AADirection = AADirection.BOTH,
-    downscaler: Scaler = Catrom(),
-    planes: PlanesT = 0
+    downscaler: Scaler = Catrom(), planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Super-sampled single-rate AA for heavy aliasing and broken line-art.
@@ -136,7 +138,7 @@ def clamp_aa(
         thr = strength / 219
 
     if thr == 0:
-        return median_clips([src, weak, strong], planes)
+        return median_clips(src, weak, strong, planes=planes)
 
     expr = f'x y - XYD! XYD@ x z - XZD! XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
 
