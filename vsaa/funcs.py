@@ -22,7 +22,7 @@ core = vs.core
 def upscaled_sraa(
     clip: vs.VideoNode, rfactor: float = 1.5,
     width: int | None = None, height: int | None = None,
-    ssfunc: SuperSampler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
+    ssfunc: Scaler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
     direction: AADirection = AADirection.BOTH,
     downscaler: Scaler = Catrom(),
     planes: PlanesT = 0
