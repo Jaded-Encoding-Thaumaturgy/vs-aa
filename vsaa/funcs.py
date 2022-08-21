@@ -82,7 +82,8 @@ def upscaled_sraa(
 
     if downscaler:
         aa = downscaler.scale(aa, width, height)
-    elif not chroma:
+
+    if not chroma:
         return aa
 
     return join([aa, *chroma], clip.format.color_family)
