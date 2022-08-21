@@ -43,8 +43,9 @@ def upscaled_sraa(
     :param width:           Target resolution width. If None, determined from `height`.
     :param height:          Target resolution height.
     :param ssfunc:          Super-sampler used for upscaling before AA.
-    :param aafunc:          Downscaler to use after super-sampling.
-    :param aafun:           Function used to antialias after super-sampling.
+    :param aafunc:          Function used to antialias after super-sampling.
+    :param direction:       Direction in which antialiasing will be performed.
+    :param downscaler:      Downscaler to use after super-sampling.
     :param planes:          Planes to do antialiasing on.
 
     :return:                Antialiased clip.
