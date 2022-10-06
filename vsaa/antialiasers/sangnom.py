@@ -3,15 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import vapoursynth as vs
+from vstools import core, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 
 __all__ = [
     'SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR'
 ]
-
-core = vs.core
 
 
 @dataclass

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import vapoursynth as vs
-from vsexprtools import PlanesT, norm_expr_planes, normalise_planes
-from vskernels import Catrom, Spline144
-from vskernels.kernels.abstract import Scaler
+from vsexprtools import norm_expr_planes
+from vskernels import Catrom, Scaler, Spline144
 from vsmask.edge import EdgeDetect, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
-from vsutil import get_depth, get_peak_value, get_w, join, scale_value, split
+from vstools import PlanesT, core, get_depth, get_peak_value, get_w, join, normalize_planes, scale_value, split, vs
 
 from .abstract import SingleRater
 from .antialiasers import Eedi3SR, Nnedi3SR, Nnedi3SS
@@ -18,8 +16,6 @@ __all__ = [
     'clamp_aa', 'masked_clamp_aa',
     'fine_aa'
 ]
-
-core = vs.core
 
 
 def upscaled_sraa(
@@ -54,7 +50,7 @@ def upscaled_sraa(
     """
     assert clip.format
 
-    planes = normalise_planes(clip, planes)
+    planes = normalize_planes(clip, planes)
 
     if height is None:
         height = clip.height
@@ -63,7 +59,7 @@ def upscaled_sraa(
         if height == clip.height:
             width = clip.width
         else:
-            width = get_w(height, aspect_ratio=clip.width / clip.height)
+            width = get_w(height, clip)
 
     aa_chroma = 1 in planes or 2 in planes
     scale_chroma = ((clip.width, clip.height) != (width, height)) or aa_chroma
@@ -132,7 +128,7 @@ def clamp_aa(
     """
     assert src.format
 
-    planes = normalise_planes(src, planes)
+    planes = normalize_planes(src, planes)
 
     if src.format.sample_type == vs.INTEGER:
         thr = strength * get_peak_value(src)

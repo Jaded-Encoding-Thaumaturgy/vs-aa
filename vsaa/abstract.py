@@ -6,9 +6,8 @@ from itertools import zip_longest
 from math import ceil, log2
 from typing import Any, Callable, overload
 
-import vapoursynth as vs
-from vskernels import Catrom, Kernel
-from vskernels.kernels.abstract import Scaler
+from vskernels import Catrom, Kernel, Scaler
+from vstools import core, inject_self, vs
 
 from .enums import AADirection
 
@@ -17,8 +16,6 @@ __all__ = [
     'SingleRater', 'DoubleRater',
     'Antialiaser'
 ]
-
-core = vs.core
 
 
 class _SingleInterpolate:
@@ -68,6 +65,7 @@ class SuperSampler(_Antialiaser, Scaler):
     def get_ss_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return {}
 
+    @inject_self
     def scale(
         self, clip: vs.VideoNode, width: int, height: int, shift: tuple[float, float] = (0, 0), **kwargs: Any
     ) -> vs.VideoNode:
@@ -210,6 +208,7 @@ class DoubleRater(SingleRater):
 
 
 class Antialiaser(DoubleRater, SuperSampler):
+    @inject_self
     def scale(
         self, clip: vs.VideoNode, width: int, height: int, shift: tuple[float, float] = (0, 0), **kwargs: Any
     ) -> vs.VideoNode:

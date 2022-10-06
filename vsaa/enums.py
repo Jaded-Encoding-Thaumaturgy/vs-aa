@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from enum import IntEnum
-from typing import Tuple
+from vstools import CustomIntEnum
 
 __all__ = [
     'AADirection'
 ]
 
 
-class AADirection(IntEnum):
+class AADirection(CustomIntEnum):
     VERTICAL = 0
     HORIZONTAL = 1
     BOTH = 2
 
-    def to_yx(self) -> Tuple[bool, bool]:
+    def to_yx(self) -> tuple[bool, bool]:
         if self == AADirection.VERTICAL:
             return (True, False)
 

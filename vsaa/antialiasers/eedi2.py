@@ -4,15 +4,13 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any
 
-import vapoursynth as vs
+from vstools import core, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser, _FullInterpolate
 
 __all__ = [
     'Eedi2', 'Eedi2SS', 'Eedi2SR', 'Eedi2DR'
 ]
-
-core = vs.core
 
 
 @dataclass
