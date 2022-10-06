@@ -10,7 +10,7 @@ from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Ant
 from .nnedi3 import Nnedi3
 
 __all__ = [
-    'Eedi3', 'Eedi3SS', 'Eedi3SR', 'Eedi3DR'
+    'EEDI3', 'Eedi3', 'Eedi3SS', 'Eedi3SR', 'Eedi3DR'
 ]
 
 

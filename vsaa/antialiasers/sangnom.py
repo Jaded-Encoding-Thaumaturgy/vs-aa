@@ -8,7 +8,7 @@ from vstools import core, vs
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 
 __all__ = [
-    'SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR'
+    'SANGNOM', 'SangNom', 'SangNomSS', 'SangNomSR', 'SangNomDR'
 ]
 
 
