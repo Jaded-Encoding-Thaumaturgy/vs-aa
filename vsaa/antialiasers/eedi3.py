@@ -25,12 +25,15 @@ class EEDI3(_Antialiaser):
     opencl: bool = dc_field(default=False, kw_only=True)
 
     mclip: vs.VideoNode | None = None
-    sclip_aa: Antialiaser | None = Nnedi3(nsize=4, nns=4, qual=2, etype=1)
+    sclip_aa: type[Antialiaser] | Antialiaser | None = Nnedi3(nsize=4, nns=4, qual=2, etype=1)
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return dict(alpha=self.alpha, beta=self.beta, gamma=self.gamma, nrad=self.nrad, mdis=self.mdis)
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
+        if not isinstance(self.sclip_aa, Antialiaser):
+            self.sclip_aa = self.sclip_aa()
+
         if self.sclip_aa:
             sclip_args = self.sclip_aa.get_aa_args(clip, **kwargs)
             if double_y:
