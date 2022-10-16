@@ -45,7 +45,9 @@ class EEDI3(_Antialiaser):
         else:
             sclip = None
 
-        interpolated = core.eedi3m.EEDI3(
+        function = core.eedi3m.EEDI3CL if self.opencl else core.eedi3m.EEDI3
+
+        interpolated = function(
             clip, self.field, double_y or not self.drop_fields, sclip=sclip, **kwargs
         )
 
