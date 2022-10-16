@@ -21,7 +21,11 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
     etype: int = 0
     pscrn: int = 2
 
-    opencl: bool = dc_field(default=False, kw_only=True)
+    opencl: bool | None = dc_field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if self.opencl is None:
+            self.opencl = hasattr(core, 'nnedi3cl')
 
     def _full_interpolate_enabled(self, x: bool, y: bool) -> bool:
         return self.opencl
