@@ -36,6 +36,12 @@ class EEDI3(_Antialiaser):
     mclip: vs.VideoNode | None = None
     sclip_aa: type[Antialiaser] | Antialiaser | None = Nnedi3(nsize=4, nns=4, qual=2, etype=1)
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        if self.sclip_aa and not isinstance(self.sclip_aa, Antialiaser):
+            self.sclip_aa = self.sclip_aa()
+
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return dict(
             alpha=self.alpha, beta=self.beta, gamma=self.gamma,
@@ -47,8 +53,6 @@ class EEDI3(_Antialiaser):
         ) | kwargs
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        if not isinstance(self.sclip_aa, Antialiaser):
-            self.sclip_aa = self.sclip_aa()
 
         if self.sclip_aa and ((('sclip' in kwargs) and not kwargs['sclip']) or 'sclip' not in kwargs):
             sclip_args = self.sclip_aa.get_aa_args(clip, **kwargs)

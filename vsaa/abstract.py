@@ -33,6 +33,9 @@ class _Antialiaser(_SingleInterpolate):
     shifter: Kernel = dc_field(default=Catrom(), kw_only=True)
     scaler: Scaler | None = dc_field(default=None, kw_only=True)
 
+    def __post_init__(self) -> None:
+        ...
+
     def preprocess_clip(self, clip: vs.VideoNode) -> vs.VideoNode:
         return clip
 
