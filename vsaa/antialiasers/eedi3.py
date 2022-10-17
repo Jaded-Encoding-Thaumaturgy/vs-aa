@@ -57,23 +57,24 @@ class EEDI3(_Antialiaser):
         return args
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
+        aa_kwargs = self.get_aa_args(clip, **kwargs)
 
         if self.sclip_aa and ((('sclip' in kwargs) and not kwargs['sclip']) or 'sclip' not in kwargs):
-            sclip_args = self.sclip_aa.get_aa_args(clip, **kwargs)
+            sclip_args = self.sclip_aa.get_aa_args(clip)
 
             if double_y:
-                sclip_args |= self.sclip_aa.get_ss_args(clip, **kwargs)
+                sclip_args |= self.sclip_aa.get_ss_args(clip)
             else:
-                sclip_args |= self.sclip_aa.get_sr_args(clip, **kwargs)
+                sclip_args |= self.sclip_aa.get_sr_args(clip)
 
-            kwargs.update(
+            aa_kwargs.update(
                 sclip=self.sclip_aa._interpolate(clip, double_y or not self.drop_fields, **sclip_args)
             )
 
         function = core.eedi3m.EEDI3CL if self.opencl else core.eedi3m.EEDI3
 
         interpolated = function(
-            clip, self.field, double_y or not self.drop_fields, **kwargs
+            clip, self.field, double_y or not self.drop_fields, **aa_kwargs
         )
 
         return self._shift_interpolated(clip, interpolated, double_y)
