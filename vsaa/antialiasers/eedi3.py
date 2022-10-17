@@ -43,14 +43,18 @@ class EEDI3(_Antialiaser):
             self.sclip_aa = self.sclip_aa()
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
-        return dict(
+        args = dict(
             alpha=self.alpha, beta=self.beta, gamma=self.gamma,
             nrad=self.nrad, mdis=self.mdis,
             hp=self.hp, ucubic=self.ucubic, cost3=self.cost3,
             vcheck=self.vcheck,
-            vthresh0=self.vthresh0, vthresh1=self.vthresh1, vthresh2=self.vthresh2,
-            device=self.device
+            vthresh0=self.vthresh0, vthresh1=self.vthresh1, vthresh2=self.vthresh2
         ) | kwargs
+
+        if self.opencl:
+            args |= dict(device=self.device)
+
+        return args
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
 
