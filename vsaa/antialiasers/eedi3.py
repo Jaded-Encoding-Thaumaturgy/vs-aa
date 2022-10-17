@@ -50,21 +50,22 @@ class EEDI3(_Antialiaser):
         if not isinstance(self.sclip_aa, Antialiaser):
             self.sclip_aa = self.sclip_aa()
 
-        if self.sclip_aa:
+        if self.sclip_aa and ((('sclip' in kwargs) and not kwargs['sclip']) or 'sclip' not in kwargs):
             sclip_args = self.sclip_aa.get_aa_args(clip, **kwargs)
+
             if double_y:
                 sclip_args |= self.sclip_aa.get_ss_args(clip, **kwargs)
             else:
                 sclip_args |= self.sclip_aa.get_sr_args(clip, **kwargs)
 
-            sclip = self.sclip_aa._interpolate(clip, double_y or not self.drop_fields)
-        else:
-            sclip = None
+            kwargs.update(
+                sclip=self.sclip_aa._interpolate(clip, double_y or not self.drop_fields, **sclip_args)
+            )
 
         function = core.eedi3m.EEDI3CL if self.opencl else core.eedi3m.EEDI3
 
         interpolated = function(
-            clip, self.field, double_y or not self.drop_fields, sclip=sclip, **kwargs
+            clip, self.field, double_y or not self.drop_fields, **kwargs
         )
 
         return self._shift_interpolated(clip, interpolated, double_y)
