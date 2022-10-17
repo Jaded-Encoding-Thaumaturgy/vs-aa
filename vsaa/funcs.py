@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from vsexprtools import norm_expr_planes
 from vskernels import Catrom, Scaler, Spline144
 from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
-from vsscale import SSIM, FSRCNNXShader, FSRCNNXShaderT, PlaceboShader, ShaderFile
 from vstools import (
-    CustomOverflowError, PlanesT, check_variable, core, get_depth, get_peak_value, get_w, get_y, join, normalize_planes,
-    scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, PlanesT, check_variable, core, get_depth, get_peak_value, get_w,
+    get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -248,63 +248,89 @@ def fine_aa(
     return join([repaired, *chroma], clip.format.color_family)
 
 
-def based_aa(
-    clip: vs.VideoNode, rfactor: float = 2.0,
-    mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
-    downscaler: type[Scaler] | Scaler = SSIM,
-    supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path = FSRCNNXShader.x56,
-    antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-    show_mask: bool = False
-) -> vs.VideoNode:
-    assert check_variable(clip, based_aa)
+if TYPE_CHECKING:
+    from vsscale import SSIM, FSRCNNXShader, FSRCNNXShaderT, ShaderFile
 
-    aaw = (round(clip.width * rfactor) + 1) & ~1
-    aah = (round(clip.height * rfactor) + 1) & ~1
-
-    clip_y = get_y(clip)
-
-    if rfactor < 1.0:
-        raise CustomOverflowError(
-            f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
-        )
-
-    if isinstance(lmask, EdgeDetect):
-        if mask_thr > 255:
-            raise CustomOverflowError(
-                f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
+    def based_aa(
+        clip: vs.VideoNode, rfactor: float = 2.0,
+        mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        downscaler: type[Scaler] | Scaler = SSIM,
+        supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path = FSRCNNXShader.x56,
+        antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
+        show_mask: bool = False
+    ) -> vs.VideoNode:
+        ...
+else:
+    def based_aa(
+        clip: vs.VideoNode, rfactor: float = 2.0,
+        mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        downscaler: type[Scaler] | Scaler | MISSING = MISSING,
+        supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path | MISSING = MISSING,
+        antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
+        show_mask: bool = False
+    ) -> vs.VideoNode:
+        try:
+            from vsscale import SSIM, FSRCNNXShader, PlaceboShader  # noqa: F811
+        except ModuleNotFoundError:
+            raise CustomRuntimeError(
+                'You\'re missing the "vsscale" package! You can install it with "pip install vsscale".', based_aa
             )
 
-        mask_thr = scale_8bit(clip, mask_thr)
+        if downscaler is MISSING:
+            downscaler = SSIM
 
-        lmask = lmask.edgemask(clip_y).std.Binarize(mask_thr)
-        lmask = box_blur(lmask.std.Maximum()).std.Limiter()
+        if supersampler is MISSING:
+            supersampler = FSRCNNXShader.x56
 
-    if show_mask:
-        return lmask
+        assert check_variable(clip, based_aa)
 
-    if isinstance(supersampler, (str, Path)):
-        supersampler = PlaceboShader(supersampler)
+        aaw = (round(clip.width * rfactor) + 1) & ~1
+        aah = (round(clip.height * rfactor) + 1) & ~1
 
-    mclip_up = resize_aa_mask(lmask, aaw, aah)
+        clip_y = get_y(clip)
 
-    aa = clip_y.std.Transpose()
-    aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
-    aa = downscaler.scale(aa, aah, aaw)
+        if rfactor < 1.0:
+            raise CustomOverflowError(
+                f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
+            )
 
-    def _aa_mclip(clip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
-        return core.std.Expr([
-            clip, antialiaser._interpolate(clip, False, sclip=clip), mclip
-        ], 'z y x ?')
+        if isinstance(lmask, EdgeDetect):
+            if mask_thr > 255:
+                raise CustomOverflowError(
+                    f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
+                )
 
-    aa = _aa_mclip(aa, mclip_up.std.Transpose()).std.Transpose()
+            mask_thr = scale_8bit(clip, mask_thr)
 
-    aa = _aa_mclip(aa, mclip_up)
+            lmask = lmask.edgemask(clip_y).std.Binarize(mask_thr)
+            lmask = box_blur(lmask.std.Maximum()).std.Limiter()
 
-    aa = downscaler.scale(aa, clip.width, clip.height)
+        if show_mask:
+            return lmask
 
-    aa_merge = clip_y.std.MaskedMerge(aa, lmask)
+        if isinstance(supersampler, (str, Path)):
+            supersampler = PlaceboShader(supersampler)
 
-    if clip.format.num_planes == 1:
-        return aa_merge
+        mclip_up = resize_aa_mask(lmask, aaw, aah)
 
-    return join(aa_merge, clip, clip.format.color_family)
+        aa = clip_y.std.Transpose()
+        aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
+        aa = downscaler.scale(aa, aah, aaw)
+
+        def _aa_mclip(clip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
+            return core.std.Expr([
+                clip, antialiaser._interpolate(clip, False, sclip=clip), mclip
+            ], 'z y x ?')
+
+        aa = _aa_mclip(aa, mclip_up.std.Transpose()).std.Transpose()
+
+        aa = _aa_mclip(aa, mclip_up)
+
+        aa = downscaler.scale(aa, clip.width, clip.height)
+
+        aa_merge = clip_y.std.MaskedMerge(aa, lmask)
+
+        if clip.format.num_planes == 1:
+            return aa_merge
+
+        return join(aa_merge, clip, clip.format.color_family)
