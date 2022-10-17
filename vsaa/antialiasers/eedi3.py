@@ -22,13 +22,29 @@ class EEDI3(_Antialiaser):
     nrad: int = 2
     mdis: int = 20
 
+    hp: bool = True
+    ucubic: bool = True
+    cost3: bool = True
+    vcheck: int = 2
+    vthresh0: float = 32.0
+    vthresh1: float = 64.0
+    vthresh2: float = 4.0
+
+    device: int = -1
     opencl: bool = dc_field(default=False, kw_only=True)
 
     mclip: vs.VideoNode | None = None
     sclip_aa: type[Antialiaser] | Antialiaser | None = Nnedi3(nsize=4, nns=4, qual=2, etype=1)
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
-        return dict(alpha=self.alpha, beta=self.beta, gamma=self.gamma, nrad=self.nrad, mdis=self.mdis, **kwargs)
+        return dict(
+            alpha=self.alpha, beta=self.beta, gamma=self.gamma,
+            nrad=self.nrad, mdis=self.mdis,
+            hp=self.hp, ucubic=self.ucubic, cost3=self.cost3,
+            vcheck=self.vcheck,
+            vthresh0=self.vthresh0, vthresh1=self.vthresh1, vthresh2=self.vthresh2,
+            device=self.device
+        ) | kwargs
 
     def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         if not isinstance(self.sclip_aa, Antialiaser):
