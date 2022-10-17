@@ -1,20 +1,29 @@
 from __future__ import annotations
 
+from math import ceil
+from pathlib import Path
+
 from vsexprtools import norm_expr_planes
 from vskernels import Catrom, Scaler, Spline144
-from vsmask.edge import EdgeDetect, ScharrTCanny
+from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
-from vstools import PlanesT, core, get_depth, get_peak_value, get_w, join, normalize_planes, scale_value, split, vs
+from vsscale import SSIM, FSRCNNXShader, FSRCNNXShaderT, PlaceboShader, ShaderFile
+from vstools import (
+    CustomOverflowError, PlanesT, check_variable, core, get_depth, get_peak_value, get_w, get_y, join, normalize_planes,
+    scale_8bit, scale_value, split, vs
+)
 
-from .abstract import SingleRater
-from .antialiasers import Eedi3SR, Nnedi3SR, Nnedi3SS
+from .abstract import Antialiaser, SingleRater
+from .antialiasers import Eedi3, Eedi3SR, Nnedi3SR, Nnedi3SS
 from .enums import AADirection
+from .mask import resize_aa_mask
 
 __all__ = [
     'upscaled_sraa',
     'transpose_aa',
     'clamp_aa', 'masked_clamp_aa',
-    'fine_aa'
+    'fine_aa',
+    'based_aa'
 ]
 
 
@@ -237,3 +246,65 @@ def fine_aa(
         return repaired
 
     return join([repaired, *chroma], clip.format.color_family)
+
+
+def based_aa(
+    clip: vs.VideoNode, rfactor: float = 2.0,
+    mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+    downscaler: type[Scaler] | Scaler = SSIM,
+    supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path = FSRCNNXShader.x56,
+    antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
+    show_mask: bool = False
+) -> vs.VideoNode:
+    assert check_variable(clip, based_aa)
+
+    aaw = (round(clip.width * rfactor) + 1) & ~1
+    aah = (round(clip.height * rfactor) + 1) & ~1
+
+    clip_y = get_y(clip)
+
+    if rfactor < 1.0:
+        raise CustomOverflowError(
+            f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
+        )
+
+    if isinstance(lmask, EdgeDetect):
+        if mask_thr > 255:
+            raise CustomOverflowError(
+                f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
+            )
+
+        mask_thr = scale_8bit(clip, mask_thr)
+
+        lmask = lmask.edgemask(clip_y).std.Binarize(mask_thr)
+        lmask = box_blur(lmask.std.Maximum()).std.Limiter()
+
+    if show_mask:
+        return lmask
+
+    if isinstance(supersampler, (str, Path)):
+        supersampler = PlaceboShader(supersampler)
+
+    mclip_up = resize_aa_mask(lmask, aaw, aah)
+
+    aa = clip_y.std.Transpose()
+    aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
+    aa = downscaler.scale(aa, aah, aaw)
+
+    def _aa_mclip(clip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
+        return core.std.Expr([
+            clip, antialiaser._interpolate(clip, False, sclip=clip), mclip
+        ], 'z y x ?')
+
+    aa = _aa_mclip(aa, mclip_up.std.Transpose()).std.Transpose()
+
+    aa = _aa_mclip(aa, mclip_up)
+
+    aa = downscaler.scale(aa, clip.width, clip.height)
+
+    aa_merge = clip_y.std.MaskedMerge(aa, lmask)
+
+    if clip.format.num_planes == 1:
+        return aa_merge
+
+    return join(aa_merge, clip, clip.format.color_family)
