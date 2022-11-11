@@ -25,7 +25,7 @@ class EEDI2(_FullInterpolate, _Antialiaser):
 
     cuda: bool = dc_field(default=False, kw_only=True)
 
-    def _full_interpolate_enabled(self, x: bool, y: bool) -> bool:
+    def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
         return self.cuda and x and y
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
@@ -34,7 +34,7 @@ class EEDI2(_FullInterpolate, _Antialiaser):
             estr=self.estr, dstr=self.dstr, maxd=self.maxd, pp=self.pp
         )
 
-    def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
+    def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         if self.cuda:
             interpolated = core.eedi2cuda.EEDI2(clip, self.field, **kwargs)
         else:
@@ -54,7 +54,7 @@ class EEDI2(_FullInterpolate, _Antialiaser):
 
         return self._shifter.scale(interpolated, clip.width, clip.height, shift)
 
-    def _full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
+    def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         return core.eedi2cuda.Enlarge2(clip, **kwargs)
 
     _shift = -0.5

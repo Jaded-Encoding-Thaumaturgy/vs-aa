@@ -21,7 +21,7 @@ __all__ = [
 class _SingleInterpolate:
     _shift: float
 
-    def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
+    def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         raise NotImplementedError
 
 
@@ -43,7 +43,7 @@ class _Antialiaser(_SingleInterpolate):
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return {}
 
-    def _shift_interpolated(self, clip: vs.VideoNode, inter: vs.VideoNode, double_y: bool) -> vs.VideoNode:
+    def shift_interpolate(self, clip: vs.VideoNode, inter: vs.VideoNode, double_y: bool) -> vs.VideoNode:
         if double_y:
             return inter
         elif self.drop_fields:
@@ -58,10 +58,10 @@ class _Antialiaser(_SingleInterpolate):
 
 
 class _FullInterpolate(_SingleInterpolate):
-    def _full_interpolate_enabled(self, x: bool, y: bool) -> bool:
+    def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
         return False
 
-    def _full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
+    def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         raise NotImplementedError
 
 
@@ -99,14 +99,14 @@ class SuperSampler(_Antialiaser, Scaler):
                 upscaled = upscaled.std.Transpose()
 
         for (y, x) in zip_longest([True] * mult_y, [True] * mult_x, fillvalue=False):
-            if isinstance(self, _FullInterpolate) and self._full_interpolate_enabled(x, y):
-                upscaled = self._full_interpolate(upscaled, y, x, **kwargs)
+            if isinstance(self, _FullInterpolate) and self.is_full_interpolate_enabled(x, y):
+                upscaled = self.full_interpolate(upscaled, y, x, **kwargs)
             else:
                 for isx, val in enumerate([y, x]):
                     if val:
                         _transpose(True, isx, y, x)
 
-                        upscaled = self._interpolate(upscaled, True, **kwargs)
+                        upscaled = self.interpolate(upscaled, True, **kwargs)
 
                         _transpose(False, isx, y, x)
 
@@ -184,10 +184,10 @@ class SingleRater(_Antialiaser):
             if val:
                 _transpose(True, isx)
 
-                if isinstance(self, _FullInterpolate) and self._full_interpolate_enabled(x, y):
-                    upscaled = self._full_interpolate(upscaled, False, False, **kwargs)
+                if isinstance(self, _FullInterpolate) and self.is_full_interpolate_enabled(x, y):
+                    upscaled = self.full_interpolate(upscaled, False, False, **kwargs)
                 else:
-                    upscaled = self._interpolate(upscaled, False, **kwargs)
+                    upscaled = self.interpolate(upscaled, False, **kwargs)
 
                 _transpose(False, isx)
 

@@ -27,7 +27,7 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
         if self.opencl is None:
             self.opencl = hasattr(core, 'nnedi3cl')
 
-    def _full_interpolate_enabled(self, x: bool, y: bool) -> bool:
+    def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
         return self.opencl
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
@@ -36,14 +36,14 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
         pscrn = 1 if is_float else self.pscrn
         return dict(nsize=self.nsize, nns=self.nns, qual=self.qual, etype=self.etype, pscrn=pscrn)
 
-    def _interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
+    def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         interpolated = core.nnedi3.nnedi3(
             clip, self.field, double_y or not self.drop_fields, **kwargs
         )
 
-        return self._shift_interpolated(clip, interpolated, double_y)
+        return self.shift_interpolate(clip, interpolated, double_y)
 
-    def _full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
+    def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         return core.nnedi3cl.NNEDI3CL(clip, self.field, double_y, double_x, **kwargs)
 
     _shift = 0.5

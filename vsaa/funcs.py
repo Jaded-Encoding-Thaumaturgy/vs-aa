@@ -322,7 +322,7 @@ else:
 
         def _aa_mclip(clip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
             return core.std.Expr([
-                clip, antialiaser._interpolate(clip, False, sclip=clip), mclip
+                clip, antialiaser.interpolate(clip, False, sclip=clip), mclip
             ], 'z y x ?')
 
         aa = _aa_mclip(aa, mclip_up.std.Transpose()).std.Transpose()
