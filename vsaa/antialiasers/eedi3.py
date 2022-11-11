@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any
 
-from vstools import core, vs, VSFunction
+from vstools import core, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 from .nnedi3 import Nnedi3
