@@ -195,12 +195,12 @@ def masked_clamp_aa(
             opencl=hasattr(core, 'nnedi3cl') if opencl is None else opencl
         )
     elif opencl is not None and hasattr(weak_aa, 'opencl'):
-        weak_aa.opencl = opencl  # type: ignore
+        weak_aa._opencl = opencl  # type: ignore[attr-defined]
 
     if strong_aa is None:
         strong_aa = Eedi3SR(opencl=opencl is None or opencl)
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
-        strong_aa.opencl = opencl  # type: ignore
+        strong_aa._opencl = opencl  # type: ignore[attr-defined]
 
     weak = transpose_aa(work_clip, weak_aa)
     strong = transpose_aa(work_clip, strong_aa)
