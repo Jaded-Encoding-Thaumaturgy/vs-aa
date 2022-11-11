@@ -6,7 +6,7 @@ from itertools import zip_longest
 from math import ceil, log2
 from typing import Any, Callable, overload
 
-from vskernels import Catrom, Kernel, Scaler
+from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
 from vstools import core, inject_self, vs
 
 from .enums import AADirection
@@ -30,11 +30,12 @@ class _Antialiaser(_SingleInterpolate):
     field: int = dc_field(default=0, kw_only=True)
     drop_fields: bool = dc_field(default=True, kw_only=True)
     transpose_first: bool = dc_field(default=False, kw_only=True)
-    shifter: Kernel = dc_field(default=Catrom(), kw_only=True)
-    scaler: Scaler | None = dc_field(default=None, kw_only=True)
+    shifter: KernelT = dc_field(default=Catrom(), kw_only=True)
+    scaler: ScalerT | None = dc_field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
-        ...
+        self._shifter = Kernel.ensure_obj(self.shifter, self.__class__)
+        self._scaler = None if self.scaler is None else Scaler.ensure_obj(self.scaler, self.__class__)
 
     def preprocess_clip(self, clip: vs.VideoNode) -> vs.VideoNode:
         return clip
@@ -50,10 +51,10 @@ class _Antialiaser(_SingleInterpolate):
 
         shift = (self._shift * int(not self.field), 0)
 
-        if self.scaler:
-            return self.scaler.scale(inter, clip.width, clip.height, shift)
+        if self._scaler:
+            return self._scaler.scale(inter, clip.width, clip.height, shift)
 
-        return self.shifter.scale(inter, clip.width, clip.height, shift)
+        return self._shifter.scale(inter, clip.width, clip.height, shift)
 
 
 class _FullInterpolate(_SingleInterpolate):
@@ -132,14 +133,14 @@ class SuperSampler(_Antialiaser, Scaler):
                     elif cdivw == 2 and cdivh == 1:
                         cleftshift -= 0.125 * 3
 
-            upscaled = self.shifter.shift(
+            upscaled = self._shifter.shift(
                 upscaled, [topshift, ctopshift], [leftshift, cleftshift]
             )
 
-        if self.scaler:
-            return self.scaler.scale(upscaled, width, height, shift)
+        if self._scaler:
+            return self._scaler.scale(upscaled, width, height, shift)
 
-        return self.shifter.scale(upscaled, width, height, shift)
+        return self._shifter.scale(upscaled, width, height, shift)
 
 
 class SingleRater(_Antialiaser):

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from vsexprtools import norm_expr_planes
-from vskernels import Catrom, Scaler, Spline144
+from vskernels import Catrom, Scaler, ScalerT, Spline144
 from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vstools import (
@@ -30,9 +30,9 @@ __all__ = [
 def upscaled_sraa(
     clip: vs.VideoNode, rfactor: float = 1.5,
     width: int | None = None, height: int | None = None,
-    ssfunc: Scaler = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
+    ssfunc: ScalerT = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
     direction: AADirection = AADirection.BOTH,
-    downscaler: Scaler = Catrom(), planes: PlanesT = 0
+    downscaler: ScalerT = Catrom(), planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Super-sampled single-rate AA for heavy aliasing and broken line-art.
@@ -80,6 +80,9 @@ def upscaled_sraa(
 
     ssw = (round(work_clip.width * rfactor) + 1) & ~1
     ssh = (round(work_clip.height * rfactor) + 1) & ~1
+
+    ssfunc = Scaler.ensure_obj(ssfunc, upscaled_sraa)
+    downscaler = Scaler.ensure_obj(downscaler, upscaled_sraa)
 
     up = ssfunc.scale(work_clip, ssw, ssh)
     up, *chroma = [up] if aa_chroma else (split(up) if scale_chroma else [up, *chroma])
@@ -254,8 +257,8 @@ if TYPE_CHECKING:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
-        downscaler: type[Scaler] | Scaler = SSIM,
-        supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path = FSRCNNXShader.x56,
+        downscaler: ScalerT = SSIM,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         show_mask: bool = False
     ) -> vs.VideoNode:
@@ -264,8 +267,8 @@ else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
-        downscaler: type[Scaler] | Scaler | MISSING = MISSING,
-        supersampler: Scaler | FSRCNNXShaderT | ShaderFile | str | Path | MISSING = MISSING,
+        downscaler: ScalerT | MISSING = MISSING,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MISSING = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         show_mask: bool = False
     ) -> vs.VideoNode:
