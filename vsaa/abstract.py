@@ -21,6 +21,9 @@ __all__ = [
 class _SingleInterpolate:
     _shift: float
 
+    def __post_init__(self) -> None:
+        ...
+
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         raise NotImplementedError
 
@@ -34,6 +37,8 @@ class _Antialiaser(_SingleInterpolate):
     scaler: ScalerT | None = dc_field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
+        super().__post_init__()
+
         self._shifter = Kernel.ensure_obj(self.shifter, self.__class__)
         self._scaler = None if self.scaler is None else Scaler.ensure_obj(self.scaler, self.__class__)
 

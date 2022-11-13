@@ -24,6 +24,8 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
     opencl: bool | None = dc_field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
+        super().__post_init__()
+
         self._opencl = hasattr(core, 'nnedi3cl') if self.opencl is None else self.opencl
 
     def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
