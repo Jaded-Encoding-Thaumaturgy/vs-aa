@@ -42,7 +42,8 @@ class EEDI2(_FullInterpolate, _Antialiaser):
 
         if double_y:
             return interpolated
-        elif self.drop_fields:
+
+        if self.drop_fields:
             interpolated = interpolated.std.SeparateFields(not self.field)[::2]
 
             return self._shifter.shift(interpolated, (0.5 - 0.75 * self.field, 0))
