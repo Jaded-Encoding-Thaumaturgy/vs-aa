@@ -46,5 +46,5 @@ class Znedi3DR(ZNEDI3, DoubleRater):
     ...
 
 
-class Znedi3(NNEDI3, Antialiaser):
+class Znedi3(ZNEDI3, Antialiaser):
     ...
