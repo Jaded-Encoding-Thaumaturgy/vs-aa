@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from vsexprtools import norm_expr_planes
 from vskernels import Catrom, Scaler, ScalerT, Spline144
 from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_variable, core, get_depth,
-    get_peak_value, get_w, get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_ref_clip, check_variable, core,
+    get_depth, get_peak_value, get_w, get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -252,6 +252,7 @@ def fine_aa(
 
 
 if TYPE_CHECKING:
+    from vsdenoise import Prefilter
     from vsscale import SSIM, FSRCNNXShader, FSRCNNXShaderT, ShaderFile
 
     def based_aa(
@@ -260,7 +261,7 @@ if TYPE_CHECKING:
         downscaler: ScalerT = SSIM,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        show_mask: bool = False
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, **kwargs: Any
     ) -> vs.VideoNode:
         ...
 else:
@@ -270,7 +271,7 @@ else:
         downscaler: ScalerT | MissingT = MISSING,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        show_mask: bool = False
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, **kwargs: Any
     ) -> vs.VideoNode:
         try:
             from vsscale import SSIM, FSRCNNXShader, PlaceboShader  # noqa: F811
@@ -279,11 +280,21 @@ else:
                 'You\'re missing the "vsscale" package! You can install it with "pip install vsscale".', based_aa
             )
 
+        try:
+            from vsdenoise import Prefilter  # noqa: F811
+        except ModuleNotFoundError:
+            raise CustomRuntimeError(
+                'You\'re missing the "vsdenoise" package! You can install it with "pip install vsdenoise".', based_aa
+            )
+
         if downscaler is MISSING:
             downscaler = SSIM
 
         if supersampler is MISSING:
             supersampler = FSRCNNXShader.x56
+
+        if prefilter is MISSING:
+            prefilter = Prefilter.NONE
 
         assert check_variable(clip, based_aa)
 
@@ -291,6 +302,11 @@ else:
         aah = (round(clip.height * rfactor) + 1) & ~1
 
         clip_y = get_y(clip)
+        if isinstance(prefilter, vs.VideoNode):
+            wclip_y = get_y(prefilter)
+            assert check_ref_clip(clip_y, wclip_y, based_aa)
+        else:
+            wclip_y = prefilter(clip_y, **kwargs)
 
         if rfactor < 1.0:
             raise CustomOverflowError(
@@ -303,7 +319,7 @@ else:
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
                 )
 
-            lmask = lmask.edgemask(clip_y).std.Binarize(scale_8bit(clip, mask_thr))
+            lmask = lmask.edgemask(wclip_y).std.Binarize(scale_8bit(wclip_y, mask_thr))
             lmask = box_blur(lmask.std.Maximum()).std.Limiter()
 
         if show_mask:
@@ -319,18 +335,23 @@ else:
 
         aa = clip_y.std.Transpose()
         aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
-        aa = downscaler.scale(aa, aah, aaw)
+        aa = waa = downscaler.scale(aa, aah, aaw)
 
-        def _aa_mclip(clip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
+        if clip_y is not wclip_y:
+            waa = wclip_y.std.Transpose()
+            waa = supersampler.scale(waa, waa.width * ceil(rfactor), waa.height * ceil(rfactor))
+            waa = downscaler.scale(waa, aah, aaw)
+
+        def _aa_mclip(clip: vs.VideoNode, wclip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
             return core.std.Expr([
-                clip, antialiaser.interpolate(clip, False, sclip=clip), mclip
+                clip, antialiaser.interpolate(wclip, False, sclip=wclip), mclip
             ], 'z y x ?')
 
-        aa = _aa_mclip(aa, mclip_up.std.Transpose()).std.Transpose()
+        aa = _aa_mclip(aa, waa, mclip_up.std.Transpose())
 
-        aa = _aa_mclip(aa, mclip_up)
+        aa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up)
 
-        aa = downscaler.scale(aa, clip.width, clip.height)
+        aa = downscaler.scale(aa, clip_y.width, clip_y.height)
 
         aa_merge = clip_y.std.MaskedMerge(aa, lmask)
 
