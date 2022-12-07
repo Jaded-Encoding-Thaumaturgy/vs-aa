@@ -304,7 +304,7 @@ else:
         clip_y = get_y(clip)
         if isinstance(prefilter, vs.VideoNode):
             wclip_y = get_y(prefilter)
-            assert check_ref_clip(clip_y, wclip_y, based_aa)
+            check_ref_clip(clip_y, wclip_y, based_aa)
         else:
             wclip_y = prefilter(clip_y, **kwargs)
 
