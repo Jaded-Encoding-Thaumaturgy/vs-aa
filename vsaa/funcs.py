@@ -9,8 +9,8 @@ from vskernels import Catrom, Scaler, ScalerT, Spline144
 from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, PlanesT, check_variable, core, get_depth, get_peak_value, get_w,
-    get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_variable, core, get_depth,
+    get_peak_value, get_w, get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -256,7 +256,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
         downscaler: ScalerT = SSIM,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
@@ -266,9 +266,9 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: float = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
-        downscaler: ScalerT | MISSING = MISSING,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MISSING = MISSING,
+        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        downscaler: ScalerT | MissingT = MISSING,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         show_mask: bool = False
     ) -> vs.VideoNode:
@@ -303,9 +303,7 @@ else:
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
                 )
 
-            mask_thr = scale_8bit(clip, mask_thr)
-
-            lmask = lmask.edgemask(clip_y).std.Binarize(mask_thr)
+            lmask = lmask.edgemask(clip_y).std.Binarize(scale_8bit(clip, mask_thr))
             lmask = box_blur(lmask.std.Maximum()).std.Limiter()
 
         if show_mask:
@@ -313,6 +311,9 @@ else:
 
         if isinstance(supersampler, (str, Path)):
             supersampler = PlaceboShader(supersampler)
+
+        supersampler = Scaler.ensure_obj(supersampler, based_aa)
+        downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
         mclip_up = resize_aa_mask(lmask, aaw, aah)
 
