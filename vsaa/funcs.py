@@ -7,24 +7,44 @@ from typing import TYPE_CHECKING, Any
 from vsexprtools import norm_expr_planes
 from vskernels import Catrom, Scaler, ScalerT, Spline144
 from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
-from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair
+from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
     MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_ref_clip, check_variable, core,
     get_depth, get_peak_value, get_w, get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
-from .antialiasers import Eedi3, Eedi3SR, Nnedi3SR, Nnedi3SS
+from .antialiasers import Eedi3, Eedi3SR, Nnedi3SR, Nnedi3SS, Znedi3
 from .enums import AADirection
 from .mask import resize_aa_mask
 
 __all__ = [
+    'pre_aa',
     'upscaled_sraa',
     'transpose_aa',
     'clamp_aa', 'masked_clamp_aa',
     'fine_aa',
     'based_aa'
 ]
+
+
+def pre_aa(
+    clip: vs.VideoNode, radius: int = 1, strength: int = 100,
+    aa: type[Antialiaser] | Antialiaser = Znedi3(0, pscrn=1),
+    **kwargs: Any
+) -> vs.VideoNode:
+    if isinstance(aa, Antialiaser):
+        aa = aa.copy(field=3, **kwargs)
+    else:
+        aa = aa(field=3, **kwargs)
+
+    for _ in range(2):
+        bob = aa.interpolate(clip, False)
+        sharp = unsharp_masked(clip, radius, strength)
+        limit = median_clips(sharp, clip, bob[::2], bob[1::2])
+        clip = limit.std.Transpose()
+
+    return clip
 
 
 def upscaled_sraa(
