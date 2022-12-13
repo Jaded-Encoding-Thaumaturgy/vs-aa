@@ -7,7 +7,7 @@ from math import ceil, log2
 from typing import Any, Callable, overload
 
 from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
-from vstools import core, inject_self, vs
+from vstools import core, inject_self, vs, vs_object
 
 from .enums import AADirection
 
@@ -18,11 +18,8 @@ __all__ = [
 ]
 
 
-class _SingleInterpolate:
+class _SingleInterpolate(vs_object):
     _shift: float
-
-    def __post_init__(self) -> None:
-        ...
 
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         raise NotImplementedError

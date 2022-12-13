@@ -105,6 +105,9 @@ class Eedi3SR(EEDI3, SingleRater):
         else:
             return dict(mclip=self._mclips[1])
 
+    def __vs_del__(self, core_id: int) -> None:
+        self._mclips = None
+
 
 class Eedi3DR(EEDI3, DoubleRater):
     ...
