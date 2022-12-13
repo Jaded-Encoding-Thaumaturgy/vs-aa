@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from dataclasses import field as dc_field
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any, Callable, overload
+from typing import Any, Callable, overload, TypeVar
 
 from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
 from vstools import core, inject_self, vs, vs_object
@@ -57,6 +57,12 @@ class _Antialiaser(_SingleInterpolate):
             return self._scaler.scale(inter, clip.width, clip.height, shift)
 
         return self._shifter.scale(inter, clip.width, clip.height, shift)
+
+    def copy(self: SelfAntialiaser, **kwargs: Any) -> SelfAntialiaser:
+        return replace(self, **kwargs)
+
+
+SelfAntialiaser = TypeVar('SelfAntialiaser', bound=_Antialiaser)
 
 
 class _FullInterpolate(_SingleInterpolate):
