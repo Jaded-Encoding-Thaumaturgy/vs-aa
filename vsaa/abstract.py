@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from dataclasses import field as dc_field
+from dataclasses import replace
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any, Callable, overload, TypeVar
+from typing import Any, Callable, TypeVar, overload
 
 from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
 from vstools import core, inject_self, vs, vs_object
