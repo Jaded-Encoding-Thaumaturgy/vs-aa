@@ -5,10 +5,10 @@ from dataclasses import field as dc_field
 from dataclasses import replace
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, Callable, overload
 
 from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
-from vstools import core, inject_self, vs, vs_object
+from vstools import T, core, inject_self, vs, vs_object
 
 from .enums import AADirection
 
@@ -59,11 +59,9 @@ class _Antialiaser(_SingleInterpolate):
 
         return self._shifter.scale(inter, clip.width, clip.height, shift)
 
-    def copy(self: SelfAntialiaser, **kwargs: Any) -> SelfAntialiaser:
+    @inject_self
+    def copy(self: T, **kwargs: Any) -> T:
         return replace(self, **kwargs)
-
-
-SelfAntialiaser = TypeVar('SelfAntialiaser', bound=_Antialiaser)
 
 
 class _FullInterpolate(_SingleInterpolate):
