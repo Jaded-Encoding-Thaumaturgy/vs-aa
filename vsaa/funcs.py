@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from vsexprtools import norm_expr_planes
 from vskernels import Catrom, Scaler, ScalerT, Spline144
-from vsmask.edge import EdgeDetect, Prewitt, ScharrTCanny
+from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
     MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_ref_clip, check_variable, core,
@@ -177,7 +177,7 @@ def clamp_aa(
 
 def masked_clamp_aa(
     clip: vs.VideoNode, strength: float = 1,
-    mthr: float = 0.25, mask: vs.VideoNode | EdgeDetect | None = None,
+    mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
     weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
     opencl: bool | None = True
 ) -> vs.VideoNode:
@@ -198,13 +198,10 @@ def masked_clamp_aa(
 
     work_clip, *chroma = split(clip)
 
-    if mask is None:
-        mask = ScharrTCanny()
-
-    if isinstance(mask, EdgeDetect):
+    if not isinstance(mask, vs.VideoNode):
         bin_thr = scale_value(mthr, 32, get_depth(clip))
 
-        mask = mask.edgemask(work_clip)
+        mask = ScharrTCanny.ensure_obj(mask).edgemask(work_clip)  # type: ignore
         mask = mask.std.Binarize(bin_thr)
         mask = mask.std.Maximum()
         mask = box_blur(mask)
@@ -227,7 +224,7 @@ def masked_clamp_aa(
 
     clamped = clamp_aa(work_clip, weak, strong, strength)
 
-    merged = work_clip.std.MaskedMerge(clamped, mask)
+    merged = work_clip.std.MaskedMerge(clamped, mask)  # type: ignore
 
     if not chroma:
         return merged
@@ -277,7 +274,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT = SSIM,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
@@ -287,7 +284,7 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetect = Prewitt(),
+        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT | MissingT = MISSING,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
@@ -333,7 +330,9 @@ else:
                 f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
             )
 
-        if isinstance(lmask, EdgeDetect):
+        if not isinstance(lmask, vs.VideoNode):
+            lmask = EdgeDetect.ensure_obj(lmask, based_aa)
+
             if mask_thr > 255:
                 raise CustomOverflowError(
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
