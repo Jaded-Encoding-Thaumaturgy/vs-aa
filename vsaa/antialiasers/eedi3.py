@@ -7,10 +7,10 @@ from typing import Any
 from vstools import core, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
-from .nnedi3 import Nnedi3
+from . import nnedi3
 
 __all__ = [
-    'EEDI3', 'Eedi3', 'Eedi3SS', 'Eedi3SR', 'Eedi3DR'
+    'Eedi3', 'Eedi3DR'
 ]
 
 
@@ -34,7 +34,7 @@ class EEDI3(_Antialiaser):
     opencl: bool = dc_field(default=False, kw_only=True)
 
     mclip: vs.VideoNode | None = None
-    sclip_aa: type[Antialiaser] | Antialiaser | None = Nnedi3(nsize=4, nns=4, qual=2, etype=1)
+    sclip_aa: type[Antialiaser] | Antialiaser | None = nnedi3.Nnedi3(nsize=4, nns=4, qual=2, etype=1)
 
     def __post_init__(self) -> None:
         super().__post_init__()

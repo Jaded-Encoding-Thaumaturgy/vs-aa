@@ -14,7 +14,7 @@ from vstools import (
 )
 
 from .abstract import Antialiaser, SingleRater
-from .antialiasers import Eedi3, Eedi3SR, Nnedi3SR, Nnedi3SS, Znedi3
+from .antialiasers import Eedi3, Nnedi3, Znedi3
 from .enums import AADirection
 from .mask import resize_aa_mask
 
@@ -50,7 +50,7 @@ def pre_aa(
 def upscaled_sraa(
     clip: vs.VideoNode, rfactor: float = 1.5,
     width: int | None = None, height: int | None = None,
-    ssfunc: ScalerT = Nnedi3SS(), aafunc: SingleRater = Eedi3SR(),
+    ssfunc: ScalerT = Nnedi3(), aafunc: SingleRater = Eedi3(),
     direction: AADirection = AADirection.BOTH,
     downscaler: ScalerT = Catrom(), planes: PlanesT = 0
 ) -> vs.VideoNode:
@@ -147,8 +147,8 @@ def clamp_aa(
 ) -> vs.VideoNode:
     """
     Clamp stronger AAs to weaker AAs.
-    Useful for clamping :py:func:`upscaled_sraa` or :py:func:`Eedi3SR`
-    to :py:func:`Nnedi3SR` for a strong but more precise AA.
+    Useful for clamping :py:func:`upscaled_sraa` or :py:func:`Eedi3`
+    to :py:func:`Nnedi3` for a strong but more precise AA.
 
     :param src:         Non-AA'd source clip.
     :param weak:        Weakly-AA'd clip.
@@ -208,14 +208,14 @@ def masked_clamp_aa(
         mask = mask.std.Minimum().std.Deflate()
 
     if weak_aa is None:
-        weak_aa = Nnedi3SR(
+        weak_aa = Nnedi3(
             opencl=hasattr(core, 'nnedi3cl') if opencl is None else opencl
         )
     elif opencl is not None and hasattr(weak_aa, 'opencl'):
         weak_aa._opencl = opencl  # type: ignore[attr-defined]
 
     if strong_aa is None:
-        strong_aa = Eedi3SR(opencl=opencl is None or opencl)
+        strong_aa = Eedi3(opencl=opencl is None or opencl)
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
         strong_aa._opencl = opencl  # type: ignore[attr-defined]
 
@@ -234,7 +234,7 @@ def masked_clamp_aa(
 
 def fine_aa(
     clip: vs.VideoNode, taa: bool = False,
-    singlerater: SingleRater = Eedi3SR(),
+    singlerater: SingleRater = Eedi3(),
     rep: int | RepairMode = RepairMode.LINE_CLIP_STRONG
 ) -> vs.VideoNode:
     """

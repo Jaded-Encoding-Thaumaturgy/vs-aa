@@ -9,7 +9,7 @@ from vstools import core, vs
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser, _FullInterpolate
 
 __all__ = [
-    'EEDI2', 'Eedi2', 'Eedi2SS', 'Eedi2SR', 'Eedi2DR'
+    'Eedi2', 'Eedi2DR'
 ]
 
 
