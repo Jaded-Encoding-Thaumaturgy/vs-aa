@@ -22,7 +22,6 @@ class EEDI3(_Antialiaser):
     nrad: int = 2
     mdis: int = 20
 
-    hp: bool = True
     ucubic: bool = True
     cost3: bool = True
     vcheck: int = 2
@@ -50,7 +49,7 @@ class EEDI3(_Antialiaser):
         args = dict(
             alpha=self.alpha, beta=self.beta, gamma=self.gamma,
             nrad=self.nrad, mdis=self.mdis,
-            hp=self.hp, ucubic=self.ucubic, cost3=self.cost3,
+            ucubic=self.ucubic, cost3=self.cost3,
             vcheck=self.vcheck,
             vthresh0=self.vthresh0, vthresh1=self.vthresh1, vthresh2=self.vthresh2
         ) | kwargs
