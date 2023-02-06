@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Any
+from typing import Any, Literal
 
-from vstools import core, vs
+from vstools import core, vs, CustomValueError
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 from . import nnedi3
@@ -33,16 +33,16 @@ class EEDI3(_Antialiaser):
     opencl: bool = dc_field(default=False, kw_only=True)
 
     mclip: vs.VideoNode | None = None
-    sclip_aa: type[Antialiaser] | Antialiaser | None = dc_field(
+    sclip_aa: type[Antialiaser] | Antialiaser | Literal[True] | None = dc_field(
         default_factory=lambda: nnedi3.Nnedi3(nsize=4, nns=4, qual=2, etype=1)
     )
 
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        self._sclip_aa: Antialiaser | None
+        self._sclip_aa: Antialiaser | Literal[True] | None
 
-        if self.sclip_aa and not isinstance(self.sclip_aa, Antialiaser):
+        if self.sclip_aa and self.sclip_aa is not True and not isinstance(self.sclip_aa, Antialiaser):
             self._sclip_aa = self.sclip_aa()
         else:
             self._sclip_aa = self.sclip_aa  # type: ignore[assignment]
@@ -65,16 +65,21 @@ class EEDI3(_Antialiaser):
         aa_kwargs = self.get_aa_args(clip, **kwargs)
 
         if self._sclip_aa and ((('sclip' in kwargs) and not kwargs['sclip']) or 'sclip' not in kwargs):
-            sclip_args = self._sclip_aa.get_aa_args(clip)
-
-            if double_y:
-                sclip_args |= self._sclip_aa.get_ss_args(clip)
+            if self._sclip_aa is True:
+                if double_y:
+                    raise CustomValueError("You can't pass sclip_aa=True when supersampling!", self.__class__)
+                aa_kwargs.update(sclip=clip)
             else:
-                sclip_args |= self._sclip_aa.get_sr_args(clip)
+                sclip_args = self._sclip_aa.get_aa_args(clip)
 
-            aa_kwargs.update(
-                sclip=self._sclip_aa.interpolate(clip, double_y or not self.drop_fields, **sclip_args)
-            )
+                if double_y:
+                    sclip_args |= self._sclip_aa.get_ss_args(clip)
+                else:
+                    sclip_args |= self._sclip_aa.get_sr_args(clip)
+
+                aa_kwargs.update(
+                    sclip=self._sclip_aa.interpolate(clip, double_y or not self.drop_fields, **sclip_args)
+                )
 
         function = core.eedi3m.EEDI3CL if self.opencl else core.eedi3m.EEDI3
 
