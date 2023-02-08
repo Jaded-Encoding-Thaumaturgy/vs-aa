@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import norm_expr_planes
-from vskernels import Catrom, Scaler, ScalerT, Spline144
+from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
@@ -34,7 +34,7 @@ def pre_aa(
     **kwargs: Any
 ) -> vs.VideoNode:
     if isinstance(aa, Antialiaser):
-        aa = aa.copy(field=3, **kwargs)
+        aa = aa.copy(field=3, **kwargs)  # type: ignore
     else:
         aa = aa(field=3, **kwargs)
 
@@ -276,7 +276,7 @@ if TYPE_CHECKING:
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT = SSIM,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path = FSRCNNXShader.x56,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, **kwargs: Any
     ) -> vs.VideoNode:
@@ -286,7 +286,7 @@ else:
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT | MissingT = MISSING,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | MissingT = MISSING,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, **kwargs: Any
     ) -> vs.VideoNode:
@@ -304,11 +304,14 @@ else:
                 'You\'re missing the "vsdenoise" package! You can install it with "pip install vsdenoise".', based_aa
             )
 
-        if downscaler is MISSING:
-            downscaler = SSIM
+        if supersampler is False:
+            supersampler = downscaler = NoScale
+        else:
+            if downscaler is MISSING:
+                downscaler = SSIM
 
-        if supersampler is MISSING:
-            supersampler = FSRCNNXShader.x56
+            if supersampler is MISSING:
+                supersampler = FSRCNNXShader.x56
 
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
@@ -350,8 +353,6 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        mclip_up = resize_aa_mask(lmask, aaw, aah)
-
         aa = clip_y.std.Transpose()
         aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
         aa = waa = downscaler.scale(aa, aah, aaw)
@@ -365,6 +366,8 @@ else:
             return core.std.Expr([
                 clip, antialiaser.interpolate(wclip, False, sclip=wclip), mclip
             ], 'z y x ?')
+
+        mclip_up = resize_aa_mask(lmask, aa.height, aa.width)
 
         aa = _aa_mclip(aa, waa, mclip_up.std.Transpose())
 
