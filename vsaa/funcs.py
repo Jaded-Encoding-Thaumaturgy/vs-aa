@@ -326,7 +326,9 @@ else:
             wclip_y = get_y(prefilter)
             check_ref_clip(clip_y, wclip_y, based_aa)
         else:
-            wclip_y = prefilter(clip_y, **kwargs)
+            wclip_y = prefilter(clip_y)
+
+        antialiaser = antialiaser.copy(**kwargs)
 
         if rfactor < 1.0:
             raise CustomOverflowError(
