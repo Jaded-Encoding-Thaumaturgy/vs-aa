@@ -7,7 +7,7 @@ from itertools import zip_longest
 from math import ceil, log2
 from typing import Any, Callable, overload
 
-from vskernels import Catrom, Kernel, KernelT, Scaler, ScalerT
+from vskernels import Catrom, Kernel, KernelT, NoShift, Scaler, ScalerT
 from vstools import T, core, inject_self, vs, vs_object
 
 from .enums import AADirection
@@ -127,6 +127,8 @@ class SuperSampler(_Antialiaser, Scaler):
                 elif cdivw == 1 and cdivh == 2:
                     ctopshift += 0.125
 
+            cresshift = 0.0
+
             if x and self._shift:
                 leftshift = cleftshift = self._shift
 
@@ -134,15 +136,20 @@ class SuperSampler(_Antialiaser, Scaler):
                     cleftshift = self._shift + 0.5
 
                     if cdivw == 4 and cdivh == 1:
-                        cleftshift -= 0.125 * 1
+                        cresshift = 0.125 * 1
                     elif cdivw == 2 and cdivh == 2:
-                        cleftshift -= 0.125 * 2
+                        cresshift = 0.125 * 2
                     elif cdivw == 2 and cdivh == 1:
-                        cleftshift -= 0.125 * 3
+                        cresshift = 0.125 * 3
 
-            upscaled = self._shifter.shift(
-                upscaled, [topshift, ctopshift], [leftshift, cleftshift]
-            )
+                    cleftshift -= cresshift
+
+            if isinstance(self._shifter, NoShift):
+                upscaled = Catrom.shift(upscaled, 0, [0, cleftshift + cresshift])  # type: ignore
+            else:
+                upscaled = self._shifter.shift(
+                    upscaled, [topshift, ctopshift], [leftshift, cleftshift]
+                )
 
         if self._scaler:
             return self._scaler.scale(upscaled, width, height, shift)
