@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
-from vstools import core, vs
-
-from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
+from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler
 from . import nnedi3
 
 __all__ = [
@@ -14,24 +11,14 @@ __all__ = [
 
 
 @dataclass
-class ZNEDI3(_Antialiaser):
-    nsize: int = 4
-    nns: int = 4
-    qual: int = 2
-    etype: int = 0
-    pscrn: int = 2
-
-    def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
-        return nnedi3.NNEDI3.get_aa_args(self, clip, **kwargs)  # type: ignore
-
-    def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        interpolated = core.znedi3.nnedi3(
-            clip, self.field, double_y or not self.drop_fields, **kwargs
+class ZNEDI3(nnedi3.NNEDI3):
+    def __post_init__(self) -> None:
+        import warnings
+        warnings.warn(
+            'Znedi3 class is deprecated! Nnedi3 uses znedi3 by default, please use that.\n'
+            'Will be removed on the next major bump.'
         )
-
-        return self.shift_interpolate(clip, interpolated, double_y)
-
-    _shift = 0.5
+        return super().__post_init__()
 
 
 class Znedi3SS(ZNEDI3, SuperSampler):

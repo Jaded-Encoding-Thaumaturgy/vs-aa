@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from dataclasses import field as dc_field
 from typing import Any
 
 from vstools import core, vs
@@ -33,7 +32,9 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
         return dict(nsize=self.nsize, nns=self.nns, qual=self.qual, etype=self.etype, pscrn=pscrn)
 
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        interpolated = core.nnedi3.nnedi3(
+        interpolated: vs.VideoNode = getattr(
+            core, 'znedi3' if hasattr(core, 'znedi3') else 'nnedi3'
+        ).nnedi3(
             clip, self.field, double_y or not self.drop_fields, **kwargs
         )
 
