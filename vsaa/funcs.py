@@ -14,7 +14,7 @@ from vstools import (
 )
 
 from .abstract import Antialiaser, SingleRater
-from .antialiasers import Eedi3, Nnedi3, Znedi3
+from .antialiasers import Eedi3, Nnedi3
 from .enums import AADirection
 from .mask import resize_aa_mask
 
@@ -30,7 +30,7 @@ __all__ = [
 
 def pre_aa(
     clip: vs.VideoNode, radius: int = 1, strength: int = 100,
-    aa: type[Antialiaser] | Antialiaser = Znedi3(0, pscrn=1),
+    aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
     **kwargs: Any
 ) -> vs.VideoNode:
     if isinstance(aa, Antialiaser):
