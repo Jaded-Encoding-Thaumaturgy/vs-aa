@@ -179,7 +179,7 @@ def masked_clamp_aa(
     clip: vs.VideoNode, strength: float = 1,
     mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
     weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
-    opencl: bool | None = True
+    opencl: bool | None = False
 ) -> vs.VideoNode:
     """
     Clamp a strong aa to a weaker one for the purpose of reducing the stronger's artifacts.
@@ -212,12 +212,12 @@ def masked_clamp_aa(
             opencl=hasattr(core, 'nnedi3cl') if opencl is None else opencl
         )
     elif opencl is not None and hasattr(weak_aa, 'opencl'):
-        weak_aa._opencl = opencl  # type: ignore[attr-defined]
+        weak_aa.opencl = opencl
 
     if strong_aa is None:
         strong_aa = Eedi3(opencl=opencl is None or opencl)
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
-        strong_aa._opencl = opencl  # type: ignore[attr-defined]
+        strong_aa.opencl = opencl
 
     weak = transpose_aa(work_clip, weak_aa)
     strong = transpose_aa(work_clip, strong_aa)
