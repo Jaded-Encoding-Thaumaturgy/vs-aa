@@ -9,8 +9,8 @@ from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, MissingT, PlanesT, check_ref_clip, check_variable, core,
-    get_depth, get_peak_value, get_w, get_y, join, normalize_planes, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, core,
+    get_peak_value, get_w, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -31,12 +31,16 @@ __all__ = [
 def pre_aa(
     clip: vs.VideoNode, radius: int = 1, strength: int = 100,
     aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
-    **kwargs: Any
+    planes: PlanesT = None, **kwargs: Any
 ) -> vs.VideoNode:
+    func = FunctionUtil(clip, pre_aa, planes)
+
     if isinstance(aa, Antialiaser):
         aa = aa.copy(field=3, **kwargs)  # type: ignore
     else:
         aa = aa(field=3, **kwargs)
+
+    clip = func.work_clip
 
     for _ in range(2):
         bob = aa.interpolate(clip, False)
@@ -44,7 +48,7 @@ def pre_aa(
         limit = median_clips(sharp, clip, bob[::2], bob[1::2])
         clip = limit.std.Transpose()
 
-    return clip
+    return func.return_clip(clip)
 
 
 def upscaled_sraa(
@@ -115,10 +119,13 @@ def upscaled_sraa(
     if not chroma:
         return aa
 
+    if 0 not in planes:
+        return join(clip, aa, clip.format.color_family)
+
     return join([aa, *chroma], clip.format.color_family)
 
 
-def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
+def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -> vs.VideoNode:
     """
     Perform transposed AA.
 
@@ -126,19 +133,13 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater) -> vs.VideoNode:
     :param aafun:       Antialiasing function.
     :return:            Antialiased clip.
     """
-    assert clip.format
+    func = FunctionUtil(clip, transpose_aa, planes)
 
-    work_clip, *chroma = split(clip)
+    aafunc = aafunc.copy(transpose_first=True, drop_fields=False)
 
-    aafunc.transpose_first = True
-    aafunc.drop_fields = False
+    aa = aafunc.aa(func.work_clip, AADirection.BOTH)
 
-    aa_y = aafunc.aa(work_clip, AADirection.BOTH)
-
-    if not chroma:
-        return aa_y
-
-    return join([aa_y, *chroma], clip.format.color_family)
+    return func.return_clip(aa)
 
 
 def clamp_aa(
@@ -179,7 +180,7 @@ def masked_clamp_aa(
     clip: vs.VideoNode, strength: float = 1,
     mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
     weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
-    opencl: bool | None = False
+    opencl: bool | None = False, planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Clamp a strong aa to a weaker one for the purpose of reducing the stronger's artifacts.
@@ -196,12 +197,12 @@ def masked_clamp_aa(
     """
     assert clip.format
 
-    work_clip, *chroma = split(clip)
+    func = FunctionUtil(clip, masked_clamp_aa, planes)
 
     if not isinstance(mask, vs.VideoNode):
-        bin_thr = scale_value(mthr, 32, get_depth(clip))
+        bin_thr = scale_value(mthr, 32, clip)
 
-        mask = ScharrTCanny.ensure_obj(mask).edgemask(work_clip)  # type: ignore
+        mask = ScharrTCanny.ensure_obj(mask).edgemask(func.work_clip)  # type: ignore
         mask = mask.std.Binarize(bin_thr)
         mask = mask.std.Maximum()
         mask = box_blur(mask)
@@ -219,23 +220,21 @@ def masked_clamp_aa(
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
         strong_aa.opencl = opencl
 
-    weak = transpose_aa(work_clip, weak_aa)
-    strong = transpose_aa(work_clip, strong_aa)
+    weak = transpose_aa(func.work_clip, weak_aa)
+    strong = transpose_aa(func.work_clip, strong_aa)
 
-    clamped = clamp_aa(work_clip, weak, strong, strength)
+    clamped = clamp_aa(func.work_clip, weak, strong, strength)
 
-    merged = work_clip.std.MaskedMerge(clamped, mask)  # type: ignore
+    merged = func.work_clip.std.MaskedMerge(clamped, mask)  # type: ignore
 
-    if not chroma:
-        return merged
-
-    return join([merged, *chroma], clip.format.color_family)
+    return func.return_clip(merged)
 
 
 def fine_aa(
     clip: vs.VideoNode, taa: bool = False,
     singlerater: SingleRater = Eedi3(),
-    rep: int | RepairMode = RepairMode.LINE_CLIP_STRONG
+    rep: int | RepairMode = RepairMode.LINE_CLIP_STRONG,
+    planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Taa and optionally repair clip that results in overall lighter anti-aliasing, downscaled with Spline kernel.
@@ -249,23 +248,20 @@ def fine_aa(
     """
     assert clip.format
 
-    singlerater.shifter = Spline144()
+    singlerater = singlerater.copy(shifter=Spline144())
 
-    work_clip, *chroma = split(clip)
+    func = FunctionUtil(clip, fine_aa, planes)
 
     if taa:
-        aa = transpose_aa(work_clip, singlerater)
+        aa = transpose_aa(func.work_clip, singlerater)
     else:
-        aa = singlerater.aa(work_clip, AADirection.BOTH)
+        aa = singlerater.aa(func.work_clip, AADirection.BOTH)
 
-    contra = contrasharpening_median(work_clip, aa)
+    contra = contrasharpening_median(func.work_clip, aa)
 
-    repaired = repair(contra, work_clip, rep)
+    repaired = repair(contra, func.work_clip, rep)
 
-    if not chroma:
-        return repaired
-
-    return join([repaired, *chroma], clip.format.color_family)
+    return func.return_clip(repaired)
 
 
 if TYPE_CHECKING:
@@ -278,7 +274,8 @@ if TYPE_CHECKING:
         downscaler: ScalerT = SSIM,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, **kwargs: Any
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
+        **kwargs: Any
     ) -> vs.VideoNode:
         ...
 else:
@@ -288,7 +285,8 @@ else:
         downscaler: ScalerT | MissingT = MISSING,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, **kwargs: Any
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
+        **kwargs: Any
     ) -> vs.VideoNode:
         try:
             from vsscale import SSIM, FSRCNNXShader, PlaceboShader  # noqa: F811
@@ -304,6 +302,8 @@ else:
                 'You\'re missing the "vsdenoise" package! You can install it with "pip install vsdenoise".', based_aa
             )
 
+        func = FunctionUtil(clip, based_aa, planes)
+
         if supersampler is False:
             supersampler = downscaler = NoScale
         else:
@@ -316,17 +316,14 @@ else:
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
 
-        assert check_variable(clip, based_aa)
-
         aaw = (round(clip.width * rfactor) + 1) & ~1
         aah = (round(clip.height * rfactor) + 1) & ~1
 
-        clip_y = get_y(clip)
         if isinstance(prefilter, vs.VideoNode):
-            wclip_y = get_y(prefilter)
-            check_ref_clip(clip_y, wclip_y, based_aa)
+            work_clip = plane(prefilter, 0) if func.luma_only else prefilter
+            check_ref_clip(func.work_clip, work_clip, based_aa)
         else:
-            wclip_y = prefilter(clip_y)
+            work_clip = prefilter(func.work_clip)
 
         antialiaser = antialiaser.copy(**kwargs)
 
@@ -343,7 +340,7 @@ else:
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
                 )
 
-            lmask = lmask.edgemask(wclip_y).std.Binarize(scale_8bit(wclip_y, mask_thr))
+            lmask = lmask.edgemask(work_clip).std.Binarize(scale_8bit(work_clip, mask_thr))
             lmask = box_blur(lmask.std.Maximum()).std.Limiter()
 
         if show_mask:
@@ -355,12 +352,12 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aa = clip_y.std.Transpose()
+        aa = func.work_clip.std.Transpose()
         aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
         aa = waa = downscaler.scale(aa, aah, aaw)
 
-        if clip_y is not wclip_y:
-            waa = wclip_y.std.Transpose()
+        if func.work_clip is not work_clip:
+            waa = work_clip.std.Transpose()
             waa = supersampler.scale(waa, waa.width * ceil(rfactor), waa.height * ceil(rfactor))
             waa = downscaler.scale(waa, aah, aaw)
 
@@ -375,11 +372,8 @@ else:
 
         aa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up)
 
-        aa = downscaler.scale(aa, clip_y.width, clip_y.height)
+        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
-        aa_merge = clip_y.std.MaskedMerge(aa, lmask)
+        aa_merge = func.work_clip.std.MaskedMerge(aa, lmask)
 
-        if clip.format.num_planes == 1:
-            return aa_merge
-
-        return join(aa_merge, clip, clip.format.color_family)
+        return func.return_clip(aa_merge)
