@@ -4,7 +4,7 @@ from math import ceil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from vsexprtools import norm_expr_planes
+from vsexprtools import expr_func, norm_expr_planes
 from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
@@ -173,7 +173,7 @@ def clamp_aa(
 
     expr = f'x y - XYD! XYD@ x z - XZD! XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
 
-    return core.akarin.Expr([src, weak, strong], norm_expr_planes(src, expr, planes))
+    return expr_func([src, weak, strong], norm_expr_planes(src, expr, planes))
 
 
 def masked_clamp_aa(
