@@ -4,7 +4,7 @@ from math import ceil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from vsexprtools import expr_func, norm_expr_planes
+from vsexprtools import complexpr_available, norm_expr
 from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
@@ -135,9 +135,9 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -
     """
     func = FunctionUtil(clip, transpose_aa, planes)
 
-    aafunc = aafunc.copy(transpose_first=True, drop_fields=False)
+    aafunc = aafunc.copy(transpose_first=True, drop_fields=False)  # type: ignore
 
-    aa = aafunc.aa(func.work_clip, AADirection.BOTH)
+    aa = aafunc.aa(func.work_clip, AADirection.BOTH)  # type: ignore
 
     return func.return_clip(aa)
 
@@ -171,13 +171,16 @@ def clamp_aa(
     if thr == 0:
         return median_clips(src, weak, strong, planes=planes)
 
-    expr = f'x y - XYD! XYD@ x z - XZD! XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
+    if complexpr_available:
+        expr = f'x y - XYD! XYD@ x z - XZD! XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
+    else:
+        expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
 
-    return expr_func([src, weak, strong], norm_expr_planes(src, expr, planes))
+    return norm_expr([src, weak, strong], expr, planes)
 
 
 def masked_clamp_aa(
-    clip: vs.VideoNode, strength: float = 1,
+    clip: vs.VideoNode, strength: float = 1.0,
     mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
     weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
     opencl: bool | None = False, planes: PlanesT = 0
@@ -220,12 +223,12 @@ def masked_clamp_aa(
     elif opencl is not None and hasattr(strong_aa, 'opencl'):
         strong_aa.opencl = opencl
 
-    weak = transpose_aa(func.work_clip, weak_aa)
-    strong = transpose_aa(func.work_clip, strong_aa)
+    weak = transpose_aa(func.work_clip, weak_aa, func.norm_planes)
+    strong = transpose_aa(func.work_clip, strong_aa, func.norm_planes)
 
-    clamped = clamp_aa(func.work_clip, weak, strong, strength)
+    clamped = clamp_aa(func.work_clip, weak, strong, strength, func.norm_planes)
 
-    merged = func.work_clip.std.MaskedMerge(clamped, mask)  # type: ignore
+    merged = func.work_clip.std.MaskedMerge(clamped, mask, func.norm_planes)  # type: ignore
 
     return func.return_clip(merged)
 
@@ -248,18 +251,18 @@ def fine_aa(
     """
     assert clip.format
 
-    singlerater = singlerater.copy(shifter=Spline144())
+    singlerater = singlerater.copy(shifter=Spline144())  # type: ignore
 
     func = FunctionUtil(clip, fine_aa, planes)
 
     if taa:
         aa = transpose_aa(func.work_clip, singlerater)
     else:
-        aa = singlerater.aa(func.work_clip, AADirection.BOTH)
+        aa = singlerater.aa(func.work_clip, AADirection.BOTH)  # type: ignore
 
-    contra = contrasharpening_median(func.work_clip, aa)
+    contra = contrasharpening_median(func.work_clip, aa, planes=func.norm_planes)
 
-    repaired = repair(contra, func.work_clip, rep)
+    repaired = repair(contra, func.work_clip, func.norm_seq(rep))
 
     return func.return_clip(repaired)
 
