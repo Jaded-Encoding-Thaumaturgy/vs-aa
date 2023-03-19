@@ -102,8 +102,8 @@ def upscaled_sraa(
     if rfactor <= 1:
         raise ValueError('upscaled_sraa: rfactor must be above 1!')
 
-    ssh = get_h(work_clip.width * rfactor, work_clip)
-    ssw = get_w(ssh, work_clip)
+    ssh = get_h(work_clip.width * rfactor, work_clip, 2)
+    ssw = get_w(ssh, work_clip, 2)
 
     ssfunc = Scaler.ensure_obj(ssfunc, upscaled_sraa)
     downscaler = Scaler.ensure_obj(downscaler, upscaled_sraa)
