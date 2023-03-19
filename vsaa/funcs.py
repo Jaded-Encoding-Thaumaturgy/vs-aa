@@ -9,7 +9,7 @@ from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, core,
+    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, core, get_h,
     get_peak_value, get_w, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
 )
 
@@ -102,8 +102,8 @@ def upscaled_sraa(
     if rfactor <= 1:
         raise ValueError('upscaled_sraa: rfactor must be above 1!')
 
-    ssw = (round(work_clip.width * rfactor) + 1) & ~1
-    ssh = (round(work_clip.height * rfactor) + 1) & ~1
+    ssh = get_h(work_clip.width * rfactor, work_clip)
+    ssw = get_w(ssh, work_clip)
 
     ssfunc = Scaler.ensure_obj(ssfunc, upscaled_sraa)
     downscaler = Scaler.ensure_obj(downscaler, upscaled_sraa)
