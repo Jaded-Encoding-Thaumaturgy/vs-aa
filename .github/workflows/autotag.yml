@@ -3,9 +3,8 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+    paths:
+      - vsaa/_metadata.py
 
 jobs:
   new_version:
