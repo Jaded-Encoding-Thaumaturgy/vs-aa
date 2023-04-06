@@ -371,7 +371,7 @@ else:
 
         mclip_up = resize_aa_mask(lmask, aa.height, aa.width)
 
-        aa = _aa_mclip(aa, waa, mclip_up.std.Transpose())
+        waa = _aa_mclip(aa, waa, mclip_up.std.Transpose())
 
         aa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up)
 
