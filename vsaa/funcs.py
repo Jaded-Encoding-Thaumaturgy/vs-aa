@@ -364,16 +364,17 @@ else:
             waa = supersampler.scale(waa, waa.width * ceil(rfactor), waa.height * ceil(rfactor))
             waa = downscaler.scale(waa, aah, aaw)
 
-        def _aa_mclip(clip: vs.VideoNode, wclip: vs.VideoNode, mclip: vs.VideoNode) -> vs.VideoNode:
-            return core.std.Expr([
-                clip, antialiaser.interpolate(wclip, False, sclip=wclip), mclip
-            ], 'z y x ?')
+        def _aa_mclip(
+            clip: vs.VideoNode, wclip: vs.VideoNode, mclip: vs.VideoNode
+        ) -> tuple[vs.VideoNode, vs.VideoNode]:
+            wclip = antialiaser.interpolate(wclip, False, sclip=wclip)
+            return norm_expr([clip, wclip, mclip], 'z y x ?'), wclip
 
-        mclip_up = resize_aa_mask(lmask, aa.height, aa.width)
+        mclip_up = resize_aa_mask(lmask, aa.width, aa.height)
 
-        aa = _aa_mclip(aa, waa, mclip_up.std.Transpose())
+        aa, waa = _aa_mclip(aa, waa, mclip_up)
 
-        aa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up)
+        aa, waa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up.std.Transpose())
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
