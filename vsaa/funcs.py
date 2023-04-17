@@ -9,8 +9,8 @@ from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, core, get_h,
-    get_peak_value, get_w, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, get_h,
+    get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -189,8 +189,10 @@ def clamp_aa(
 def masked_clamp_aa(
     clip: vs.VideoNode, strength: float = 1.0,
     mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
-    weak_aa: SingleRater | None = None, strong_aa: SingleRater | None = None,
-    opencl: bool | None = False, planes: PlanesT = 0
+    weak_aa: vs.VideoNode | SingleRater = Nnedi3(),
+    strong_aa: vs.VideoNode | SingleRater = Eedi3(),
+    opencl: bool | None = False, ref: vs.VideoNode | None = None,
+    planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Clamp a strong aa to a weaker one for the purpose of reducing the stronger's artifacts.
@@ -202,6 +204,7 @@ def masked_clamp_aa(
     :param weak_aa:             SingleRater for the weaker aa.
     :param strong_aa:           SingleRater for the stronger aa.
     :param opencl:              Wheter to force OpenCL acceleration, None to leave as is.
+    :param ref:                 Reference clip for clamping.
 
     :return:                    Antialiased clip.
     """
@@ -218,22 +221,26 @@ def masked_clamp_aa(
         mask = box_blur(mask)
         mask = mask.std.Minimum().std.Deflate()
 
-    if weak_aa is None:
-        weak_aa = Nnedi3(
-            opencl=hasattr(core, 'nnedi3cl') if opencl is None else opencl
-        )
-    elif opencl is not None and hasattr(weak_aa, 'opencl'):
-        weak_aa.opencl = opencl
+    if isinstance(weak_aa, SingleRater):
+        if opencl is not None and hasattr(weak_aa, 'opencl'):
+            weak_aa.opencl = opencl
 
-    if strong_aa is None:
-        strong_aa = Eedi3(opencl=opencl is None or opencl)
-    elif opencl is not None and hasattr(strong_aa, 'opencl'):
-        strong_aa.opencl = opencl
+        weak_aa = transpose_aa(func.work_clip, weak_aa, func.norm_planes)
+    elif func.luma_only:
+        weak_aa = get_y(weak_aa)
 
-    weak = transpose_aa(func.work_clip, weak_aa, func.norm_planes)
-    strong = transpose_aa(func.work_clip, strong_aa, func.norm_planes)
+    if isinstance(strong_aa, SingleRater):
+        if opencl is not None and hasattr(strong_aa, 'opencl'):
+            strong_aa.opencl = opencl
 
-    clamped = clamp_aa(func.work_clip, weak, strong, strength, func.norm_planes)
+        strong_aa = transpose_aa(func.work_clip, strong_aa, func.norm_planes)
+    elif func.luma_only:
+        strong_aa = get_y(strong_aa)
+
+    if ref and func.luma_only:
+        ref = get_y(ref)
+
+    clamped = clamp_aa(func.work_clip, weak_aa, strong_aa, strength, ref, func.norm_planes)
 
     merged = func.work_clip.std.MaskedMerge(clamped, mask, func.norm_planes)  # type: ignore
 
