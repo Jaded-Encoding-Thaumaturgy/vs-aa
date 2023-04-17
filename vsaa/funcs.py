@@ -144,7 +144,7 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -
 
 def clamp_aa(
     src: vs.VideoNode, weak: vs.VideoNode, strong: vs.VideoNode,
-    strength: float = 1, planes: PlanesT = 0
+    strength: float = 1, ref: vs.VideoNode | None = None, planes: PlanesT = 0
 ) -> vs.VideoNode:
     """
     Clamp stronger AAs to weaker AAs.
@@ -155,6 +155,7 @@ def clamp_aa(
     :param weak:        Weakly-AA'd clip.
     :param strong:      Strongly-AA'd clip.
     :param strength:    Clamping strength.
+    :param ref:         Reference clip for clamping.
     :param planes:      Planes to process.
 
     :return:            Clip with clamped anti-aliasing.
@@ -171,12 +172,18 @@ def clamp_aa(
     if thr == 0:
         return median_clips(src, weak, strong, planes=planes)
 
-    if complexpr_available:
-        expr = f'x y - XYD! x z - XZD! XYD@ XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
+    if ref:
+        if complexpr_available:
+            expr = f'y z - ZD! y a - AD! ZD@ AD@ xor x ZD@ abs AD@ abs < a z {thr} + min z {thr} - max a ? ?'
+        else:
+            expr = f'y z - y a - xor x y z - abs y a - abs < a z {thr} + min z {thr} - max a ? ?'
     else:
-        expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
+        if complexpr_available:
+            expr = f'x y - XYD! x z - XZD! XYD@ XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
+        else:
+            expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
 
-    return norm_expr([src, weak, strong], expr, planes)
+    return norm_expr([src, ref, weak, strong] if ref else [src, weak, strong], expr, planes)
 
 
 def masked_clamp_aa(
