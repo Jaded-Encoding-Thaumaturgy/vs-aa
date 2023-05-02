@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from math import ceil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import complexpr_available, norm_expr
-from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
+from vskernels import Catrom, NoScale, Point, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
@@ -330,9 +329,6 @@ else:
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
 
-        aaw = (round(clip.width * rfactor) + 1) & ~1
-        aah = (round(clip.height * rfactor) + 1) & ~1
-
         if isinstance(prefilter, vs.VideoNode):
             work_clip = plane(prefilter, 0) if func.luma_only else prefilter
             check_ref_clip(func.work_clip, work_clip, based_aa)
@@ -366,26 +362,20 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aa = func.work_clip.std.Transpose()
-        aa = supersampler.scale(aa, aa.width * ceil(rfactor), aa.height * ceil(rfactor))
-        aa = waa = downscaler.scale(aa, aah, aaw)
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (clip.width, clip.height)]
+
+        aa = supersampler.scale(func.work_clip.std.Transpose(), aah, aaw)
+
+        mclip_up = resize_aa_mask(lmask.std.Transpose(), aa.width, aa.height)
+
+        if not func.luma_only:
+            mclip_up = Point.resample(join(lmask, lmask, lmask), aa)
 
         if func.work_clip is not work_clip:
-            waa = work_clip.std.Transpose()
-            waa = supersampler.scale(waa, waa.width * ceil(rfactor), waa.height * ceil(rfactor))
-            waa = downscaler.scale(waa, aah, aaw)
+            aa = supersampler.scale(work_clip.std.Transpose(), aa.height, aa.width)
 
-        def _aa_mclip(
-            clip: vs.VideoNode, wclip: vs.VideoNode, mclip: vs.VideoNode
-        ) -> tuple[vs.VideoNode, vs.VideoNode]:
-            wclip = antialiaser.interpolate(wclip, False, sclip=wclip)
-            return norm_expr([clip, wclip, mclip], 'z y x ?'), wclip
-
-        mclip_up = resize_aa_mask(lmask, aa.width, aa.height)
-
-        aa, waa = _aa_mclip(aa, waa, mclip_up)
-
-        aa, waa = _aa_mclip(aa.std.Transpose(), waa.std.Transpose(), mclip_up.std.Transpose())
+        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up).std.Transpose()
+        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose())
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
