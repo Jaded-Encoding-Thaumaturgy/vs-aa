@@ -368,12 +368,6 @@ else:
 
         mclip_up = resize_aa_mask(lmask.std.Transpose(), aa.width, aa.height)
 
-        if not func.luma_only:
-            mclip_up = Point.resample(join(lmask, lmask, lmask), aa)
-
-        if func.work_clip is not work_clip:
-            aa = supersampler.scale(work_clip.std.Transpose(), aa.height, aa.width)
-
         aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up).std.Transpose()
         aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose())
 
