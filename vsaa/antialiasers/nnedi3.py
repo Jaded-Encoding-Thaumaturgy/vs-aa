@@ -14,11 +14,11 @@ __all__ = [
 
 @dataclass
 class NNEDI3(_FullInterpolate, _Antialiaser):
-    nsize: int = 4
+    nsize: int = 0
     nns: int = 4
     qual: int = 2
     etype: int = 0
-    pscrn: int = 2
+    pscrn: int = 1
 
     opencl: bool = False
 
