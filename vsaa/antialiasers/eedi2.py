@@ -35,27 +35,27 @@ class EEDI2(_FullInterpolate, _Antialiaser):
         )
 
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
-        interpolated: vs.VideoNode
+        inter: vs.VideoNode
 
         if self.cuda:
-            interpolated = core.eedi2cuda.EEDI2(clip, self.field, **kwargs)  # type: ignore
+            inter = core.eedi2cuda.EEDI2(clip, self.field, **kwargs)  # type: ignore
         else:
-            interpolated = core.eedi2.EEDI2(clip, self.field, **kwargs)  # type: ignore
+            inter = core.eedi2.EEDI2(clip, self.field, **kwargs)  # type: ignore
 
-        if double_y:
-            return interpolated
+        if not double_y:
+            if self.drop_fields:
+                inter = inter.std.SeparateFields(not self.field)[::2]
 
-        if self.drop_fields:
-            interpolated = interpolated.std.SeparateFields(not self.field)[::2]
+                inter = self._shifter.shift(inter, (0.5 - 0.75 * self.field, 0))
+            else:
+                shift = (self._shift * int(not self.field), 0)
 
-            return self._shifter.shift(interpolated, (0.5 - 0.75 * self.field, 0))
+                if self._scaler:
+                    inter = self._scaler.scale(inter, clip.width, clip.height, shift)
+                else:
+                    inter = self._shifter.scale(inter, clip.width, clip.height, shift)
 
-        shift = (self._shift * int(not self.field), 0)
-
-        if self._scaler:
-            return self._scaler.scale(interpolated, clip.width, clip.height, shift)
-
-        return self._shifter.scale(interpolated, clip.width, clip.height, shift)
+        return self._post_interpolate(clip, inter, double_y, **kwargs)
 
     def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         return core.eedi2cuda.Enlarge2(clip, **kwargs)  # type: ignore

@@ -87,7 +87,7 @@ class EEDI3(_Antialiaser):
             clip, self.field, double_y or not self.drop_fields, **aa_kwargs
         )
 
-        return self.shift_interpolate(clip, interpolated, double_y)
+        return self.shift_interpolate(clip, interpolated, double_y, **kwargs)
 
     _shift = 0.5
 

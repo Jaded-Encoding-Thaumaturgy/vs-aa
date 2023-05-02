@@ -22,6 +22,11 @@ __all__ = [
 class _SingleInterpolate(vs_object):
     _shift: float
 
+    def _post_interpolate(
+        self, clip: vs.VideoNode, aa_clip: vs.VideoNode, double_y: bool, **kwargs: Any
+    ) -> vs.VideoNode:
+        return aa_clip
+
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:
         raise NotImplementedError
 
@@ -46,18 +51,17 @@ class _Antialiaser(_SingleInterpolate):
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         return {}
 
-    def shift_interpolate(self, clip: vs.VideoNode, inter: vs.VideoNode, double_y: bool) -> vs.VideoNode:
-        if double_y:
-            return inter
-        elif self.drop_fields:
-            return inter
+    def shift_interpolate(
+        self, clip: vs.VideoNode, inter: vs.VideoNode, double_y: bool, **kwargs: Any
+    ) -> vs.VideoNode:
+        if not double_y and not self.drop_fields:
+            shift = (self._shift * int(not self.field), 0)
 
-        shift = (self._shift * int(not self.field), 0)
+            inter = (self._scaler if self._scaler else self._shifter).scale(inter, clip.width, clip.height, shift)
 
-        if self._scaler:
-            return self._scaler.scale(inter, clip.width, clip.height, shift)
+            return self._post_interpolate(clip, inter, double_y, **kwargs)
 
-        return self._shifter.scale(inter, clip.width, clip.height, shift)
+        return inter
 
     @inject_self
     def copy(self: T, **kwargs: Any) -> T:

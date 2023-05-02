@@ -30,7 +30,7 @@ class SANGNOM(_Antialiaser):
             clip, dh=double_y or not self.drop_fields, **kwargs
         )
 
-        return self.shift_interpolate(clip, interpolated, double_y)
+        return self.shift_interpolate(clip, interpolated, double_y, **kwargs)
 
     _shift = -0.5
 

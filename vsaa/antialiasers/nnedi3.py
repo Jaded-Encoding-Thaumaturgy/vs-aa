@@ -38,7 +38,7 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
             clip, self.field, double_y or not self.drop_fields, **kwargs
         )
 
-        return self.shift_interpolate(clip, interpolated, double_y)
+        return self.shift_interpolate(clip, interpolated, double_y, **kwargs)
 
     def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
         return core.nnedi3cl.NNEDI3CL(clip, self.field, double_y, double_x, **kwargs)
