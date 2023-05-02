@@ -7,6 +7,7 @@ from itertools import zip_longest
 from math import ceil, log2
 from typing import Any, Callable, overload
 
+from vsexprtools import norm_expr
 from vskernels import Catrom, Kernel, KernelT, NoShift, Scaler, ScalerT
 from vstools import T, core, inject_self, vs, vs_object
 
@@ -23,8 +24,12 @@ class _SingleInterpolate(vs_object):
     _shift: float
 
     def _post_interpolate(
-        self, clip: vs.VideoNode, aa_clip: vs.VideoNode, double_y: bool, **kwargs: Any
+        self, clip: vs.VideoNode, aa_clip: vs.VideoNode, double_y: bool,
+        mclip: vs.VideoNode | None = None, **kwargs: Any
     ) -> vs.VideoNode:
+        if not double_y and isinstance(mclip, vs.VideoNode):
+            return norm_expr([clip, aa_clip, mclip], 'z y x ?')
+
         return aa_clip
 
     def interpolate(self, clip: vs.VideoNode, double_y: bool, **kwargs: Any) -> vs.VideoNode:

@@ -70,7 +70,9 @@ class EEDI3(_Antialiaser):
                     raise CustomValueError("You can't pass sclip_aa=True when supersampling!", self.__class__)
                 aa_kwargs.update(sclip=clip)
             else:
-                sclip_args = self._sclip_aa.get_aa_args(clip)
+                sclip_args = self._sclip_aa.get_aa_args(
+                    clip, **(dict(mclip=kwargs.get('clip') if 'mclip' in kwargs else {}))
+                )
 
                 if double_y:
                     sclip_args |= self._sclip_aa.get_ss_args(clip)
