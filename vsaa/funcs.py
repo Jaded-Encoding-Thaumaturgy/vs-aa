@@ -283,12 +283,12 @@ def fine_aa(
 
 if TYPE_CHECKING:
     from vsdenoise import Prefilter
-    from vsscale import SSIM, FSRCNNXShader, FSRCNNXShaderT, ShaderFile
+    from vsscale import FSRCNNXShader, FSRCNNXShaderT, ShaderFile
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
-        downscaler: ScalerT = SSIM,
+        downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = FSRCNNXShader.x56,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
@@ -299,14 +299,14 @@ else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
-        downscaler: ScalerT | MissingT = MISSING,
+        downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         try:
-            from vsscale import SSIM, FSRCNNXShader, PlaceboShader  # noqa: F811
+            from vsscale import FSRCNNXShader, PlaceboShader  # noqa: F811
         except ModuleNotFoundError:
             raise CustomRuntimeError(
                 'You\'re missing the "vsscale" package! You can install it with "pip install vsscale".', based_aa
@@ -324,9 +324,6 @@ else:
         if supersampler is False:
             supersampler = downscaler = NoScale
         else:
-            if downscaler is MISSING:
-                downscaler = SSIM
-
             if supersampler is MISSING:
                 supersampler = FSRCNNXShader.x56
 
