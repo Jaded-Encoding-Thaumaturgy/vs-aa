@@ -8,15 +8,9 @@ __all__ = [
 
 
 class AADirection(CustomIntEnum):
-    VERTICAL = 0
-    HORIZONTAL = 1
-    BOTH = 2
+    VERTICAL = 1
+    HORIZONTAL = 2
+    BOTH = 3
 
     def to_yx(self) -> tuple[bool, bool]:
-        if self == AADirection.VERTICAL:
-            return (True, False)
-
-        if self == AADirection.HORIZONTAL:
-            return (False, True)
-
-        return (True, True)
+        return (bool(self & AADirection.VERTICAL), bool(self & AADirection.HORIZONTAL))
