@@ -171,13 +171,16 @@ class SingleRater(_Antialiaser):
         return {}
 
     @overload
+    @inject_self.init_kwargs.clean
     def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
+    @inject_self.init_kwargs.clean
     def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
+    @inject_self.init_kwargs.clean
     def aa(
         self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
@@ -246,13 +249,16 @@ class Antialiaser(DoubleRater, SuperSampler):
         return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
 
     @overload
+    @inject_self.init_kwargs.clean
     def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
+    @inject_self.init_kwargs.clean
     def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
+    @inject_self.init_kwargs.clean
     def aa(
         self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
@@ -268,13 +274,16 @@ class Antialiaser(DoubleRater, SuperSampler):
         return SingleRater._aa(self, clip, y, x, **kwargs)
 
     @overload
+    @inject_self.init_kwargs.clean
     def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
+    @inject_self.init_kwargs.clean
     def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
+    @inject_self.init_kwargs.clean
     def draa(
         self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
