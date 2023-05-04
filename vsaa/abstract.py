@@ -203,6 +203,9 @@ class SingleRater(_Antialiaser):
             if ((before or not y) if is_width else (before and x)):
                 upscaled = upscaled.std.Transpose()
 
+                if 'mclip' in kwargs:
+                    kwargs.update(mclip=kwargs.get('mclip').std.Transpose())
+
         for isx, val in enumerate([y, x]):
             if val:
                 _transpose(True, isx)
