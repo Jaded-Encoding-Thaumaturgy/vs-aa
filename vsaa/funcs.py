@@ -202,7 +202,7 @@ def masked_clamp_aa(
     :param mask:                Clip to use for custom mask or an EdgeDetect to use custom masker.
     :param weak_aa:             SingleRater for the weaker aa.
     :param strong_aa:           SingleRater for the stronger aa.
-    :param opencl:              Wheter to force OpenCL acceleration, None to leave as is.
+    :param opencl:              Whether to force OpenCL acceleration, None to leave as is.
     :param ref:                 Reference clip for clamping.
 
     :return:                    Antialiased clip.
