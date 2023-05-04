@@ -171,15 +171,15 @@ class SingleRater(_Antialiaser):
         return {}
 
     @overload
-    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     def aa(
-        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
         if isinstance(y_or_dir, AADirection):
             y, x = y_or_dir.to_yx()
@@ -243,15 +243,15 @@ class Antialiaser(DoubleRater, SuperSampler):
         return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
 
     @overload
-    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     def aa(
-        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
         """Single rate aa with this antialiaser"""
 
@@ -265,15 +265,15 @@ class Antialiaser(DoubleRater, SuperSampler):
         return SingleRater._aa(self, clip, y, x, **kwargs)
 
     @overload
-    def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.VERTICAL, /, **kwargs: Any) -> vs.VideoNode:
+    def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     @overload
-    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, /, **kwargs: Any) -> vs.VideoNode:
+    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
         ...
 
     def draa(
-        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = False, /, **kwargs: Any
+        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
     ) -> vs.VideoNode:
         """Double rate aa with this antialiaser"""
 

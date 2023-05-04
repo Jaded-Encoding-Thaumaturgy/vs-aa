@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import complexpr_available, norm_expr
-from vskernels import Catrom, NoScale, Point, Scaler, ScalerT, Spline144
+from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
@@ -136,7 +136,7 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -
 
     aafunc = aafunc.copy(transpose_first=True, drop_fields=False)  # type: ignore
 
-    aa = aafunc.aa(func.work_clip, AADirection.BOTH)  # type: ignore
+    aa = aafunc.aa(func.work_clip)  # type: ignore
 
     return func.return_clip(aa)
 
@@ -271,7 +271,7 @@ def fine_aa(
     if taa:
         aa = transpose_aa(func.work_clip, singlerater)
     else:
-        aa = singlerater.aa(func.work_clip, AADirection.BOTH)  # type: ignore
+        aa = singlerater.aa(func.work_clip)  # type: ignore
 
     contra = contrasharpening_median(func.work_clip, aa, planes=func.norm_planes)
 
