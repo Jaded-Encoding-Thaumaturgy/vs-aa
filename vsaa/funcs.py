@@ -108,7 +108,7 @@ def upscaled_sraa(
     downscaler = Scaler.ensure_obj(downscaler, upscaled_sraa)
 
     up = ssfunc.scale(work_clip, ssw, ssh)
-    up, *chroma = [up] if aa_chroma else (split(up) if scale_chroma else [up, *chroma])
+    up, *chroma = [up] if aa_chroma or scale_chroma else [up, *chroma]
 
     aa = aafunc.aa(up, *direction.to_yx())
 
