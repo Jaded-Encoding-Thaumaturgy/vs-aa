@@ -20,10 +20,16 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
     etype: int = 0
     pscrn: int = 1
 
-    opencl: bool = False
+    opencl: bool | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        if self.opencl is None:
+            self.opencl = hasattr(core, 'sneedif')
 
     def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
-        return self.opencl
+        return not not self.opencl
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         assert clip.format
@@ -41,13 +47,18 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
         return self.shift_interpolate(clip, interpolated, double_y, **kwargs)
 
     def full_interpolate(self, clip: vs.VideoNode, double_y: bool, double_x: bool, **kwargs: Any) -> vs.VideoNode:
-        if not self.transpose_first:
-            clip = clip.std.Transpose()
+        if hasattr(core, 'sneedif'):
+            clip = core.sneedif.NNEDI3(
+                clip, self.field, double_y, double_x, transpose_first=self.transpose_first, **kwargs
+            )
+        else:
+            if not self.transpose_first:
+                clip = clip.std.Transpose()
 
-        clip = core.nnedi3cl.NNEDI3CL(clip, self.field, double_y, double_x, **kwargs)
+            clip = core.nnedi3cl.NNEDI3CL(clip, self.field, double_y, double_x, **kwargs)
 
-        if not self.transpose_first:
-            clip = clip.std.Transpose()
+            if not self.transpose_first:
+                clip = clip.std.Transpose()
 
         return clip
 
