@@ -41,13 +41,13 @@ class _Antialiaser(_SingleInterpolate):
     field: int = dc_field(default=0, kw_only=True)
     drop_fields: bool = dc_field(default=True, kw_only=True)
     transpose_first: bool = dc_field(default=False, kw_only=True)
-    shifter: KernelT = dc_field(default=Catrom(), kw_only=True)
+    shifter: KernelT | None = dc_field(default=None, kw_only=True)
     scaler: ScalerT | None = dc_field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        self._shifter = Kernel.ensure_obj(self.shifter, self.__class__)
+        self._shifter = Kernel.ensure_obj(self.shifter or Catrom, self.__class__)
         self._scaler = None if self.scaler is None else Scaler.ensure_obj(self.scaler, self.__class__)
 
     def preprocess_clip(self, clip: vs.VideoNode) -> vs.VideoNode:
