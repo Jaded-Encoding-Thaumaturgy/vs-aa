@@ -350,8 +350,11 @@ else:
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
                 )
 
-            lmask = lmask.edgemask(work_clip).std.Binarize(scale_8bit(work_clip, mask_thr))
+            lmask = lmask.edgemask(plane(work_clip, 0)).std.Binarize(scale_8bit(work_clip, mask_thr))
             lmask = box_blur(lmask.std.Maximum()).std.Limiter()
+
+            if not func.luma_only:
+                lmask = Catrom.resample(join(lmask, lmask, lmask), work_clip)
 
         if show_mask:
             return lmask
