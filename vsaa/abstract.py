@@ -225,7 +225,7 @@ class SingleRater(_Antialiaser):
 
 @dataclass(kw_only=True)
 class DoubleRater(SingleRater):
-    merge_func: Callable[[vs.VideoNode, vs.VideoNode], vs.VideoNode] = core.std.Merge
+    merge_func: Callable[[vs.VideoNode, vs.VideoNode], vs.VideoNode] = core.proxied.std.Merge
 
     def _aa(self, clip: vs.VideoNode, y: bool = True, x: bool = False, **kwargs: Any) -> vs.VideoNode:
         original_field = int(self.field)

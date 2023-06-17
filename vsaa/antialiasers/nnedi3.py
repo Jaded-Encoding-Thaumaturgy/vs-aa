@@ -22,14 +22,8 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
 
     opencl: bool | None = None
 
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        if self.opencl is None:
-            self.opencl = hasattr(core, 'sneedif')
-
     def is_full_interpolate_enabled(self, x: bool, y: bool) -> bool:
-        return not not self.opencl
+        return not not (hasattr(core, 'sneedif') if self.opencl is None else self.opencl)
 
     def get_aa_args(self, clip: vs.VideoNode, **kwargs: Any) -> dict[str, Any]:
         assert clip.format
