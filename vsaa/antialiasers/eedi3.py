@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any, Literal
 
-from vstools import core, vs, CustomValueError
+from vstools import CustomValueError, core, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 from . import nnedi3
