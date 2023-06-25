@@ -240,6 +240,7 @@ class DoubleRater(SingleRater):
         return self.merge_func(aa0, aa1)
 
 
+@dataclass
 class Antialiaser(DoubleRater, SuperSampler):
     @inject_self
     def scale(  # type: ignore[override]
