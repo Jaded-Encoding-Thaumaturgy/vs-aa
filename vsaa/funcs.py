@@ -282,13 +282,13 @@ def fine_aa(
 
 if TYPE_CHECKING:
     from vsdenoise import Prefilter
-    from vsscale import FSRCNNXShader, FSRCNNXShaderT, ShaderFile
+    from vsscale import FSRCNNXShaderT, ShaderFile, Waifu2x
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT = Catrom,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = FSRCNNXShader.x56,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = Waifu2x,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
@@ -305,17 +305,10 @@ else:
         **kwargs: Any
     ) -> vs.VideoNode:
         try:
-            from vsscale import FSRCNNXShader, PlaceboShader  # noqa: F811
-        except ModuleNotFoundError:
-            raise CustomRuntimeError(
-                'You\'re missing the "vsscale" package! You can install it with "pip install vsscale".', based_aa
-            )
-
-        try:
             from vsdenoise import Prefilter  # noqa: F811
         except ModuleNotFoundError:
             raise CustomRuntimeError(
-                'You\'re missing the "vsdenoise" package! You can install it with "pip install vsdenoise".', based_aa
+                'You\'re missing the "vsdenoise" package! Install it with "pip install vsdenoise".', based_aa
             )
 
         func = FunctionUtil(clip, based_aa, planes)
@@ -324,7 +317,22 @@ else:
             supersampler = downscaler = NoScale
         else:
             if supersampler is MISSING:
-                supersampler = FSRCNNXShader.x56
+                try:
+                    from vsscale import Waifu2x  # noqa: F811
+                except ModuleNotFoundError:
+                    raise CustomRuntimeError(
+                        'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
+                    )
+
+                supersampler = Waifu2x()
+            elif isinstance(supersampler, (str, Path)):
+                try:
+                    from vsscale import PlaceboShader  # noqa: F811
+                except ModuleNotFoundError:
+                    raise CustomRuntimeError(
+                        'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
+                    )
+                supersampler = PlaceboShader(supersampler)
 
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
@@ -358,9 +366,6 @@ else:
 
         if show_mask:
             return lmask
-
-        if isinstance(supersampler, (str, Path)):
-            supersampler = PlaceboShader(supersampler)
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
