@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -8,8 +9,9 @@ from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
 from vsmasktools import EdgeDetect, EdgeDetectT, Morpho, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FunctionUtil, MissingT, PlanesT, check_ref_clip,
-    get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FunctionUtil, MissingT, PlanesT, VSFunction,
+    check_ref_clip, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
+    vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -27,27 +29,40 @@ __all__ = [
 ]
 
 
-def pre_aa(
-    clip: vs.VideoNode, radius: int = 1, strength: int = 100,
-    aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
-    planes: PlanesT = None, **kwargs: Any
-) -> vs.VideoNode:
-    func = FunctionUtil(clip, pre_aa, planes)
+class _pre_aa:
+    def custom(
+        self, clip: vs.VideoNode, sharpen: VSFunction,
+        aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
+        planes: PlanesT = None, **kwargs: Any
+    ) -> vs.VideoNode:
+        func = FunctionUtil(clip, pre_aa, planes)
 
-    if isinstance(aa, Antialiaser):
-        aa = aa.copy(field=3, **kwargs)  # type: ignore
-    else:
-        aa = aa(field=3, **kwargs)
+        if isinstance(aa, Antialiaser):
+            aa = aa.copy(field=3, **kwargs)  # type: ignore
+        else:
+            aa = aa(field=3, **kwargs)
 
-    clip = func.work_clip
+        wclip = func.work_clip
 
-    for _ in range(2):
-        bob = aa.interpolate(clip, False)
-        sharp = unsharp_masked(clip, radius, strength)
-        limit = median_clips(sharp, clip, bob[::2], bob[1::2])
-        clip = limit.std.Transpose()
+        for _ in range(2):
+            bob = aa.interpolate(wclip, False)
+            sharp = sharpen(wclip)
+            limit = median_clips(sharp, wclip, bob[::2], bob[1::2])
+            wclip = limit.std.Transpose()
 
-    return func.return_clip(clip)
+        return func.return_clip(wclip)
+
+    def __call__(
+        self, clip: vs.VideoNode, radius: int = 1, strength: int = 100,
+        aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
+        planes: PlanesT = None, **kwargs: Any
+    ) -> vs.VideoNode:
+        return self.custom(
+            clip, partial(unsharp_masked, radius=radius, strength=strength), aa, planes, **kwargs
+        )
+
+
+pre_aa = _pre_aa()
 
 
 def upscaled_sraa(
