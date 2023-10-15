@@ -3,13 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from vsexprtools import complexpr_available, norm_expr
+from vsexprtools import ExprOp, complexpr_available, norm_expr
 from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
-from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
+from vsmasktools import EdgeDetect, EdgeDetectT, Morpho, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, check_ref_clip, get_h,
-    get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FunctionUtil, MissingT, PlanesT, check_ref_clip,
+    get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -290,7 +290,7 @@ if TYPE_CHECKING:
         downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = Waifu2x,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool | int = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         ...
@@ -301,7 +301,7 @@ else:
         downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool | int = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         try:
@@ -364,7 +364,7 @@ else:
             if not func.luma_only:
                 lmask = Catrom.resample(join(lmask, lmask, lmask), work_clip)
 
-        if show_mask:
+        if show_mask == 1:
             return lmask
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
@@ -372,15 +372,29 @@ else:
 
         aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (clip.width, clip.height)]
 
-        aa = supersampler.scale(func.work_clip.std.Transpose(), aah, aaw)
+        ss_y = supersampler.scale(func.work_clip.std.Transpose(), aah, aaw)
 
-        mclip_up = resize_aa_mask(lmask.std.Transpose(), aa.width, aa.height)
+        mclip_up = resize_aa_mask(lmask.std.Transpose(), ss_y.width, ss_y.height)
 
-        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up).std.Transpose()
-        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose())
+        aa_y = antialiaser.interpolate(ss_y, False, sclip=ss_y, mclip=mclip_up)
+        ss_x = aa_y.std.Transpose()
+        aa_x = antialiaser.interpolate(ss_x, False, sclip=ss_x, mclip=mclip_up.std.Transpose())
 
-        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
+        pmask = norm_expr([ss_y.std.Transpose(), ss_x, aa_x], 'x y = x z = and 0 range_size ?')
+        pmask = resize_aa_mask(pmask, clip.width, clip.height)
+        pmask = Morpho.maximum(norm_expr(pmask, 'x range_size 0 ?'), iterations=3)
 
-        aa_merge = func.work_clip.std.MaskedMerge(aa, lmask)
+        lpmask = ExprOp.MIN(lmask, pmask)
+
+        if show_mask == 2:
+            return pmask
+        elif show_mask == 3:
+            return lpmask
+        elif show_mask:
+            raise CustomValueError('Wrong show_mask value! It can be one of 1 (True), 2, 3', based_aa)
+
+        aa = downscaler.scale(aa_x, func.work_clip.width, func.work_clip.height)
+
+        aa_merge = func.work_clip.std.MaskedMerge(aa, lpmask)
 
         return func.return_clip(aa_merge)
