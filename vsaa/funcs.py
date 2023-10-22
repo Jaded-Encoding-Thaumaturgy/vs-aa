@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import ExprOp, complexpr_available, norm_expr
-from vskernels import Catrom, NoScale, Scaler, ScalerT, Spline144
+from vskernels import Catrom, NoScale, Scaler, ScalerT, Bilinear
 from vsmasktools import EdgeDetect, EdgeDetectT, Morpho, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
@@ -279,7 +279,7 @@ def fine_aa(
     """
     assert clip.format
 
-    singlerater = singlerater.copy(shifter=Spline144())  # type: ignore
+    singlerater = singlerater.copy(shifter=Bilinear())  # type: ignore
 
     func = FunctionUtil(clip, fine_aa, planes)
 
