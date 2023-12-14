@@ -62,6 +62,8 @@ class EEDI2(_FullInterpolate, _Antialiaser):
 
     _shift = -0.5
 
+    _static_kernel_radius = 2
+
 
 class Eedi2SS(EEDI2, SuperSampler):
     ...

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any, Literal
 
-from vstools import CustomValueError, core, vs
+from vstools import CustomValueError, core, inject_self, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser
 from . import nnedi3
@@ -90,6 +90,10 @@ class EEDI3(_Antialiaser):
         return self.shift_interpolate(clip, interpolated, double_y, **kwargs)
 
     _shift = 0.5
+
+    @inject_self.property
+    def kernel_radius(self) -> int:
+        return self.nrad
 
 
 class Eedi3SS(EEDI3, SuperSampler):

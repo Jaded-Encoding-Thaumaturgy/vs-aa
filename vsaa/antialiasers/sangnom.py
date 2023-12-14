@@ -34,6 +34,8 @@ class SANGNOM(_Antialiaser):
 
     _shift = -0.5
 
+    _static_kernel_radius = 2
+
 
 class SangNomSS(SANGNOM, SuperSampler):
     ...

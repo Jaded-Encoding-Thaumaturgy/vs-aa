@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from vstools import core, vs
+from vstools import core, inject_self, vs
 
 from ..abstract import Antialiaser, DoubleRater, SingleRater, SuperSampler, _Antialiaser, _FullInterpolate
 
@@ -62,6 +62,18 @@ class NNEDI3(_FullInterpolate, _Antialiaser):
         return clip
 
     _shift = 0.5
+
+    @inject_self.property
+    def kernel_radius(self) -> int:
+        match self.nsize:
+            case 1 | 5:
+                return 16
+            case 2 | 6:
+                return 32
+            case 3:
+                return 48
+            case _:
+                return 8
 
 
 class Nnedi3SS(NNEDI3, SuperSampler):
