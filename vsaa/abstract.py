@@ -87,9 +87,11 @@ class SuperSampler(_Antialiaser, Scaler):
 
     @inject_self
     def scale(  # type: ignore[override]
-        self, clip: vs.VideoNode, width: int, height: int, shift: tuple[float, float] = (0, 0), **kwargs: Any
+        self, clip: vs.VideoNode, width: int | None = None, height: int | None = None,
+        shift: tuple[float, float] = (0, 0), **kwargs: Any
     ) -> vs.VideoNode:
         clip = self.preprocess_clip(clip)
+        width, height = Scaler._wh_norm(clip, width, height)
 
         assert clip.format and clip.width and clip.height
 
@@ -244,9 +246,11 @@ class DoubleRater(SingleRater):
 class Antialiaser(DoubleRater, SuperSampler):
     @inject_self
     def scale(  # type: ignore[override]
-        self, clip: vs.VideoNode, width: int, height: int, shift: tuple[float, float] = (0, 0), **kwargs: Any
+        self, clip: vs.VideoNode, width: int | None = None, height: int | None = None,
+        shift: tuple[float, float] = (0, 0), **kwargs: Any
     ) -> vs.VideoNode:
         """Scale with this antialiaser"""
+        width, height = Scaler._wh_norm(clip, width, height)
         return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
 
     @overload
