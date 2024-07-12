@@ -156,7 +156,8 @@ class SuperSampler(_Antialiaser, Scaler):
                     cleftshift -= cresshift
 
             if isinstance(self._shifter, NoShift):
-                upscaled = Catrom.shift(upscaled, 0, [0, cleftshift + cresshift])  # type: ignore
+                if upscaled.format.subsampling_h or upscaled.format.subsampling_w:
+                    upscaled = Catrom.shift(upscaled, 0, [0, cleftshift + cresshift])  # type: ignore
             else:
                 upscaled = self._shifter.shift(
                     upscaled, [topshift, ctopshift], [leftshift, cleftshift]
