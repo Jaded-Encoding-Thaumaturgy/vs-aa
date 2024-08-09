@@ -297,13 +297,13 @@ def fine_aa(
 
 if TYPE_CHECKING:
     from vsdenoise import Prefilter
-    from vsscale import FSRCNNXShaderT, ShaderFile, Waifu2x
+    from vsscale import ArtCNN, FSRCNNXShaderT, ShaderFile
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
         downscaler: ScalerT = Catrom,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = Waifu2x,
+        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool | int = False, planes: PlanesT = 0,
         **kwargs: Any
@@ -333,13 +333,13 @@ else:
         else:
             if supersampler is MISSING:
                 try:
-                    from vsscale import Waifu2x  # noqa: F811
+                    from vsscale import ArtCNN  # noqa: F811
                 except ModuleNotFoundError:
                     raise CustomRuntimeError(
                         'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
                     )
 
-                supersampler = Waifu2x()
+                supersampler = ArtCNN.C16F64()
             elif isinstance(supersampler, (str, Path)):
                 try:
                     from vsscale import PlaceboShader  # noqa: F811
