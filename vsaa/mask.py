@@ -17,4 +17,4 @@ def resize_aa_mask(mclip: vs.VideoNode, width: int | None = None, height: int | 
     if (ow > iw and ow / iw != ow // iw) or (oh > ih and oh / ih != oh // ih):
         mclip = Point.scale(mclip, iw * ceil(ow / iw), ih * ceil(oh / ih))
 
-    return Box(fulls=1, fulld=1).scale(mclip, ow, oh)
+    return Box.scale(mclip, ow, oh)
