@@ -59,9 +59,8 @@ class EEDI3(_Antialiaser):
 
         if self.opencl:
             args |= dict(device=self.device)
-
-        # opt=3 appears to always give reliable speed boosts if mclip is used.
-        if self.mclip is not None or kwargs.get('mclip'):
+        elif self.mclip is not None or kwargs.get('mclip'):
+            # opt=3 appears to always give reliable speed boosts if mclip is used.
             args |= dict(opt=kwargs.get('opt', self.opt) or 3)
 
         return args
