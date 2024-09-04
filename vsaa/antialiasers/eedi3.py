@@ -29,6 +29,7 @@ class EEDI3(_Antialiaser):
     vthresh1: float = 64.0
     vthresh2: float = 4.0
 
+    opt: int = 0
     device: int = -1
     opencl: bool = dc_field(default=False, kw_only=True)
 
@@ -58,6 +59,9 @@ class EEDI3(_Antialiaser):
 
         if self.opencl:
             args |= dict(device=self.device)
+        elif self.mclip is not None or kwargs.get('mclip'):
+            # opt=3 appears to always give reliable speed boosts if mclip is used.
+            args |= dict(opt=kwargs.get('opt', self.opt) or 3)
 
         return args
 
