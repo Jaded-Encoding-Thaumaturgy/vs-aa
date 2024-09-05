@@ -409,7 +409,9 @@ else:
             raise CustomValueError('Wrong show_mask value! It can be one of 1 (True), 2, 3', based_aa)
 
         aa = downscaler.scale(aa_x, func.work_clip.width, func.work_clip.height)
+        no_aa = downscaler.scale(ss_y.std.Transpose(), func.work_clip.width, func.work_clip.height)
 
         aa_merge = func.work_clip.std.MaskedMerge(aa, lpmask)
+        aa_merge = norm_expr([func.work_clip, aa_merge, no_aa], "y z = x y ?")
 
         return func.return_clip(aa_merge)
