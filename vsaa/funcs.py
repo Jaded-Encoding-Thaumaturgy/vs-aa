@@ -411,7 +411,7 @@ else:
         aa = downscaler.scale(aa_x, func.work_clip.width, func.work_clip.height)
         no_aa = downscaler.scale(ss_y.std.Transpose(), func.work_clip.width, func.work_clip.height)
 
-        aa_merge = func.work_clip.std.MaskedMerge(aa, lpmask)
-        aa_merge = norm_expr([func.work_clip, aa_merge, no_aa], "y z = x y ?")
+        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+        aa_merge = func.work_clip.std.MaskedMerge(aa_merge, lpmask)
 
         return func.return_clip(aa_merge)
