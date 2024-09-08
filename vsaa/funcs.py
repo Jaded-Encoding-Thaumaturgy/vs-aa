@@ -147,7 +147,16 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -
     :param aafun:       Antialiasing function.
     :return:            Antialiased clip.
     """
+
     func = FunctionUtil(clip, transpose_aa, planes)
+
+    import warnings
+
+    warnings.warn(
+        f"{func.func}: 'This function is deprecated and will be removed in future versions. "
+        "Please use `transpose_first` in your `aafunc` instead.'",
+        DeprecationWarning,
+    )
 
     aafunc = aafunc.copy(transpose_first=True, drop_fields=False)  # type: ignore
 
@@ -277,11 +286,19 @@ def fine_aa(
 
     :return:                Antialiased clip.
     """
+
     assert clip.format
 
     singlerater = singlerater.copy(shifter=Bilinear())  # type: ignore
 
     func = FunctionUtil(clip, fine_aa, planes)
+
+    import warnings
+
+    warnings.warn(
+        f"{func.func}: 'This function is deprecated and will be removed in future versions.'",
+        DeprecationWarning,
+    )
 
     if taa:
         aa = transpose_aa(func.work_clip, singlerater)
