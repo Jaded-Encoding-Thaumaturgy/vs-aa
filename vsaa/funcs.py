@@ -11,7 +11,7 @@ from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clip
 from vstools import (
     MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FunctionUtil, MissingT, PlanesT, VSFunction,
     check_ref_clip, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
-    vs
+    vs, padder
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -385,18 +385,17 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (clip.width, clip.height)]
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (work_clip.width, work_clip.height)]
 
-        ss_y = supersampler.scale(func.work_clip.std.Transpose(), aah, aaw)
+        ss = supersampler.scale(work_clip, aaw, aah)
+        mclip_up = resize_aa_mask(lmask, ss.width, ss.height)
 
-        mclip_up = resize_aa_mask(lmask.std.Transpose(), ss_y.width, ss_y.height)
+        aa = antialiaser.interpolate(ss, False, sclip=ss, mclip=mclip_up).std.Transpose()
+        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose()).std.Transpose()
 
-        aa_y = antialiaser.interpolate(ss_y, False, sclip=ss_y, mclip=mclip_up)
-        ss_x = aa_y.std.Transpose()
-        aa_x = antialiaser.interpolate(ss_x, False, sclip=ss_x, mclip=mclip_up.std.Transpose())
-
-        pmask = norm_expr([ss_y.std.Transpose(), ss_x, aa_x], 'x y = x z = and 0 range_size ?')
-        pmask = resize_aa_mask(pmask, clip.width, clip.height)
+        pmask = norm_expr([ss, aa], 'x y = 0 range_size ?')
+        pmask = padder.COLOR(pmask.std.Crop(2, 2, 2, 2), 2, 2, 2, 2)
+        pmask = resize_aa_mask(pmask, work_clip.width, work_clip.height)
         pmask = Morpho.maximum(norm_expr(pmask, 'x range_size 0 ?'), iterations=3)
 
         lpmask = ExprOp.MIN(lmask, pmask)
@@ -408,10 +407,10 @@ else:
         elif show_mask:
             raise CustomValueError('Wrong show_mask value! It can be one of 1 (True), 2, 3', based_aa)
 
-        aa = downscaler.scale(aa_x, func.work_clip.width, func.work_clip.height)
-        no_aa = downscaler.scale(ss_y.std.Transpose(), func.work_clip.width, func.work_clip.height)
+        aa = downscaler.scale(aa, work_clip.width, work_clip.height)
+        no_aa = downscaler.scale(ss, work_clip.width, work_clip.height)
 
-        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
-        aa_merge = func.work_clip.std.MaskedMerge(aa_merge, lpmask)
+        aa_merge = norm_expr([work_clip, aa, no_aa], "y z = x y ?")
+        aa_merge = work_clip.std.MaskedMerge(aa_merge, lpmask)
 
         return func.return_clip(aa_merge)
