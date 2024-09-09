@@ -411,7 +411,7 @@ else:
         aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose()).std.Transpose()
 
         pmask = norm_expr([ss, aa], 'x y = 0 range_size ?')
-        pmask = padder.COLOR(pmask.std.Crop(2, 2, 2, 2), 2, 2, 2, 2)
+        pmask = padder.COLOR(pmask.std.Crop(2, 2, 2, 2), 2, 2, 2, 2, [0])
         pmask = resize_aa_mask(pmask, work_clip.width, work_clip.height)
         pmask = Morpho.maximum(norm_expr(pmask, 'x range_size 0 ?'), iterations=3)
 
