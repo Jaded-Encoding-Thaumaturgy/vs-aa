@@ -405,7 +405,7 @@ else:
         aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (work_clip.width, work_clip.height)]
 
         ss = supersampler.scale(work_clip, aaw, aah)
-        mclip_up = resize_aa_mask(lmask, aaw, aah)
+        mclip_up = resize_aa_mask(lmask, ss.width, ss.height)
 
         aa = antialiaser.interpolate(ss, False, sclip=ss, mclip=mclip_up).std.Transpose()
         aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose()).std.Transpose()
