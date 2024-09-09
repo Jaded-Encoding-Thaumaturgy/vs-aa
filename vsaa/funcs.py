@@ -322,7 +322,7 @@ if TYPE_CHECKING:
         downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool | int = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         ...
@@ -333,7 +333,7 @@ else:
         downscaler: ScalerT = Catrom,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool | int = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         try:
@@ -396,7 +396,7 @@ else:
             if not func.luma_only:
                 lmask = Catrom.resample(join(lmask, lmask, lmask), work_clip)
 
-        if show_mask == 1:
+        if show_mask:
             return lmask
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
@@ -410,24 +410,10 @@ else:
         aa = antialiaser.interpolate(ss, False, sclip=ss, mclip=mclip_up).std.Transpose()
         aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose()).std.Transpose()
 
-        pmask = norm_expr([ss, aa], 'x y = 0 range_size ?')
-        pmask = padder.COLOR(pmask.std.Crop(2, 2, 2, 2), 2, 2, 2, 2)
-        pmask = resize_aa_mask(pmask, work_clip.width, work_clip.height)
-        pmask = Morpho.maximum(norm_expr(pmask, 'x range_size 0 ?'), iterations=3)
-
-        lpmask = ExprOp.MIN(lmask, pmask)
-
-        if show_mask == 2:
-            return pmask
-        elif show_mask == 3:
-            return lpmask
-        elif show_mask:
-            raise CustomValueError('Wrong show_mask value! It can be one of 1 (True), 2, 3', based_aa)
-
         aa = downscaler.scale(aa, work_clip.width, work_clip.height)
         no_aa = downscaler.scale(ss, work_clip.width, work_clip.height)
 
         aa_merge = norm_expr([work_clip, aa, no_aa], "y z = x y ?")
-        aa_merge = work_clip.std.MaskedMerge(aa_merge, lpmask)
+        aa_merge = work_clip.std.MaskedMerge(aa_merge, lmask)
 
         return func.return_clip(aa_merge)
