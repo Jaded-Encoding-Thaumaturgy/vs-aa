@@ -4,14 +4,14 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from vsexprtools import ExprOp, complexpr_available, norm_expr
+from vsexprtools import complexpr_available, norm_expr
 from vskernels import Catrom, NoScale, Scaler, ScalerT, Bilinear
-from vsmasktools import EdgeDetect, EdgeDetectT, Morpho, Prewitt, ScharrTCanny
+from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FunctionUtil, MissingT, PlanesT, VSFunction,
+    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, VSFunction,
     check_ref_clip, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
-    vs, padder
+    vs
 )
 
 from .abstract import Antialiaser, SingleRater
