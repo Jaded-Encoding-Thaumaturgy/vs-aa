@@ -95,6 +95,15 @@ def upscaled_sraa(
 
     :raises ValueError:     ``rfactor`` is not above 1.
     """
+
+    import warnings
+
+    warnings.warn(
+        "upscaled_sraa: 'This function is deprecated and will be removed in future versions. "
+        "Please use `based_aa` instead.",
+        DeprecationWarning,
+    )
+
     assert clip.format
 
     planes = normalize_planes(clip, planes)
