@@ -168,8 +168,8 @@ def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -
 def clamp_aa(
     clip: vs.VideoNode, strength: float = 1.0,
     mthr: float = 0.25, mask: vs.VideoNode | EdgeDetectT | None = None,
-    weak_aa: vs.VideoNode | SingleRater = Nnedi3(),
-    strong_aa: vs.VideoNode | SingleRater = Eedi3(),
+    weak_aa: vs.VideoNode | Antialiaser = Nnedi3(),
+    strong_aa: vs.VideoNode | Antialiaser = Eedi3(),
     opencl: bool | None = False, ref: vs.VideoNode | None = None,
     planes: PlanesT = 0
 ) -> vs.VideoNode:
@@ -180,8 +180,8 @@ def clamp_aa(
     :param strength:            Set threshold strength for over/underflow value for clamping.
     :param mthr:                Binarize threshold for the mask, float.
     :param mask:                Clip to use for custom mask or an EdgeDetect to use custom masker.
-    :param weak_aa:             SingleRater for the weaker aa.
-    :param strong_aa:           SingleRater for the stronger aa.
+    :param weak_aa:             Antialiaser for the weaker aa.
+    :param strong_aa:           Antialiaser for the stronger aa.
     :param opencl:              Whether to force OpenCL acceleration, None to leave as is.
     :param ref:                 Reference clip for clamping.
 
@@ -190,19 +190,19 @@ def clamp_aa(
 
     func = FunctionUtil(clip, clamp_aa, planes, vs.YUV)
 
-    if isinstance(weak_aa, SingleRater):
+    if not isinstance(weak_aa, vs.VideoNode):
         if opencl is not None and hasattr(weak_aa, 'opencl'):
             weak_aa.opencl = opencl
 
-        weak_aa = weak_aa.aa(func.work_clip, planes=func.norm_planes)
+        weak_aa = weak_aa.aa(func.work_clip)
     elif func.luma_only:
         weak_aa = get_y(weak_aa)
 
-    if isinstance(strong_aa, SingleRater):
+    if not isinstance(strong_aa, vs.VideoNode):
         if opencl is not None and hasattr(strong_aa, 'opencl'):
             strong_aa.opencl = opencl
 
-        strong_aa = strong_aa.aa(func.work_clip, planes=func.norm_planes)
+        strong_aa = strong_aa.aa(func.work_clip)
     elif func.luma_only:
         strong_aa = get_y(strong_aa)
 
@@ -215,7 +215,7 @@ def clamp_aa(
         thr = strength / 219
 
     if thr == 0:
-        clamped = median_clips(func.work_clip, weak_aa, strong_aa, planes=planes)
+        clamped = median_clips([func.work_clip, weak_aa, strong_aa], planes=planes)
     else:
         if ref:
             if complexpr_available:
@@ -228,7 +228,10 @@ def clamp_aa(
             else:
                 expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
 
-            clamped = norm_expr([func.work_clip, ref, weak_aa, strong_aa] if ref else [func.work_clip, strong_aa, strong_aa], expr, func.norm_planes)
+            clamped = norm_expr(
+                [func.work_clip, ref, weak_aa, strong_aa] if ref 
+                else [func.work_clip, strong_aa, strong_aa], expr, func.norm_planes
+            )
 
     if mask:
         if not isinstance(mask, vs.VideoNode):
@@ -237,7 +240,7 @@ def clamp_aa(
             mask = ScharrTCanny.ensure_obj(mask).edgemask(func.work_clip)  # type: ignore
             mask = box_blur(mask.std.Binarize(bin_thr).std.Maximum())
             mask = mask.std.Minimum().std.Deflate()
-        
+
         clamped = func.work_clip.std.MaskedMerge(clamped, mask, func.norm_planes)  # type: ignore
 
     return func.return_clip(clamped)
