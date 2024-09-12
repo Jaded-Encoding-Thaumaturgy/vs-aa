@@ -197,7 +197,7 @@ def clamp_aa(
     :return:                    Antialiased clip.
     """
 
-    func = FunctionUtil(clip, clamp_aa, planes, vs.YUV)
+    func = FunctionUtil(clip, clamp_aa, planes, (vs.YUV, vs.GRAY))
 
     if not isinstance(weak_aa, vs.VideoNode):
         if opencl is not None and hasattr(weak_aa, 'opencl'):
@@ -328,7 +328,7 @@ else:
                 'You\'re missing the "vsdenoise" package! Install it with "pip install vsdenoise".', based_aa
             )
 
-        func = FunctionUtil(clip, based_aa, planes, vs.YUV)
+        func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
 
         if supersampler is False:
             supersampler = downscaler = NoScale
