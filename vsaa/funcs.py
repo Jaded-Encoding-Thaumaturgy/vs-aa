@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import complexpr_available, norm_expr
-from vskernels import Catrom, NoScale, Scaler, ScalerT, Bilinear
+from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
 from vstools import (
@@ -304,7 +304,7 @@ if TYPE_CHECKING:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
-        downscaler: ScalerT = Catrom,
+        downscaler: ScalerT | None = None,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
@@ -315,7 +315,7 @@ else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
         mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
-        downscaler: ScalerT = Catrom,
+        downscaler: ScalerT | None = None,
         supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
         prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
@@ -330,9 +330,12 @@ else:
         :param lmask:           Edge detection mask or function to generate it.  Default: Prewitt.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
-                                Default: Catrom.
+                                If None, downscaler will be set to Box if rfactor is an integer, and Catrom otherwise.
+                                Default: None.
         :param supersampler:    Scaler used for supersampling before anti-aliasing. If False, no supersampling
-                                is performed. Default: ArtCNN.C16F64.
+                                is performed. The supersampler should ideally be fairly sharp without
+                                introducing too much ringing.
+                                Default: ArtCNN.C16F64.
         :param antialiaser:     Anti-aliasing function to be applied. Default: Eedi3.
         :param prefilter:       Pre-filtering to be applied before anti-aliasing. Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
@@ -373,6 +376,7 @@ else:
                     raise CustomRuntimeError(
                         'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
                     )
+
                 supersampler = PlaceboShader(supersampler)
 
         if prefilter is MISSING:
@@ -390,6 +394,9 @@ else:
             raise CustomOverflowError(
                 f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
             )
+
+        if downscaler is None:
+            downscaler = Box if float(rfactor).is_integer() else Catrom
 
         if not isinstance(lmask, vs.VideoNode):
             lmask = EdgeDetect.ensure_obj(lmask, based_aa)
