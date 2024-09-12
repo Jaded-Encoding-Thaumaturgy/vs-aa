@@ -321,6 +321,30 @@ else:
         prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
+        """
+        Perform based anti-aliasing on a video clip.
+
+        :param clip:            Clip to process.
+        :param rfactor:         Resize factor for supersampling. Must be greater than 1.0. Default: 2.0.
+        :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255. Default: 60.
+        :param lmask:           Edge detection mask or function to generate it.  Default: Prewitt.
+        :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
+                                a relatively sharp kernel that doesn't introduce too much haloing.
+                                Default: Catrom.
+        :param supersampler:    Scaler used for supersampling before anti-aliasing. If False, no supersampling
+                                is performed. Default: ArtCNN.C16F64.
+        :param antialiaser:     Anti-aliasing function to be applied. Default: Eedi3.
+        :param prefilter:       Pre-filtering to be applied before anti-aliasing. Default: None.
+        :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
+                                Default: False
+        :param planes:          Planes to process. Default: Luma only.
+        :param kwargs:          Additional keyword arguments to pass on to the antialiaser.
+
+        :return:                Anti-aliased clip or edge detection mask if show_mask is True.
+
+        :raises CustomRuntimeError:     If required packages are missing.
+        :raises CustomOverflowError:    If rfactor is less than 1.0 or mask_thr is greater than 255.
+        """
         try:
             from vsdenoise import Prefilter  # noqa: F811
         except ModuleNotFoundError:
