@@ -9,7 +9,7 @@ from typing import Any, Callable, overload
 
 from vsexprtools import norm_expr
 from vskernels import Catrom, Kernel, KernelT, NoShift, Scaler, ScalerT
-from vstools import T, core, inject_self, vs, vs_object
+from vstools import T, core, inject_self, vs, vs_object, FieldBased, UnsupportedFieldBasedError
 
 from .enums import AADirection
 
@@ -90,6 +90,10 @@ class SuperSampler(_Antialiaser, Scaler):
         self, clip: vs.VideoNode, width: int | None = None, height: int | None = None,
         shift: tuple[float, float] = (0, 0), **kwargs: Any
     ) -> vs.VideoNode:
+
+        if FieldBased.from_video(clip).is_inter:
+            raise UnsupportedFieldBasedError('Only progressive video is supported!', self.scale)
+
         clip = self.preprocess_clip(clip)
         width, height = Scaler._wh_norm(clip, width, height)
 
