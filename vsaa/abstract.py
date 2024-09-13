@@ -212,6 +212,9 @@ class SingleRater(_Antialiaser):
                 if 'mclip' in kwargs:
                     kwargs.update(mclip=kwargs.get('mclip').std.Transpose())
 
+                if 'sclip' in kwargs:
+                    kwargs.update(sclip=kwargs.get('sclip').std.Transpose())
+
         for isx, val in enumerate([y, x]):
             if val:
                 _transpose(True, isx)
