@@ -35,7 +35,7 @@ class EEDI3(_Antialiaser):
 
     mclip: vs.VideoNode | None = None
     sclip_aa: type[Antialiaser] | Antialiaser | Literal[True] | None = dc_field(
-        default_factory=lambda: nnedi3.Nnedi3(nsize=4, nns=4, qual=2, etype=1)
+        default_factory=lambda: nnedi3.Nnedi3
     )
 
     def __post_init__(self) -> None:
