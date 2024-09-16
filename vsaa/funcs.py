@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from vsexprtools import complexpr_available, norm_expr
 from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
-from vsrgtools import RepairMode, box_blur, contrasharpening_median, median_clips, repair, unsharp_masked
+from vsrgtools import RepairMode, MeanMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
     MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, VSFunction,
     check_ref_clip, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
@@ -47,7 +47,7 @@ class _pre_aa:
         for _ in range(2):
             bob = aa.interpolate(wclip, False)
             sharp = sharpen(wclip)
-            limit = median_clips(sharp, wclip, bob[::2], bob[1::2])
+            limit = MeanMode.MEDIAN(sharp, wclip, bob[::2], bob[1::2])
             wclip = limit.std.Transpose()
 
         return func.return_clip(wclip)
@@ -224,7 +224,7 @@ def clamp_aa(
         thr = strength / 219
 
     if thr == 0:
-        clamped = median_clips([func.work_clip, weak_aa, strong_aa], planes=planes)
+        clamped = MeanMode.MEDIAN(func.work_clip, weak_aa, strong_aa, planes=planes)
     else:
         if ref:
             if complexpr_available:
