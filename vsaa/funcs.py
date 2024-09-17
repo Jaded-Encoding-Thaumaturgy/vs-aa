@@ -9,15 +9,14 @@ from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import RepairMode, MeanMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FunctionUtil, MissingT, PlanesT, VSFunction,
-    check_ref_clip, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
-    vs
+    CustomOverflowError, CustomRuntimeError, FormatsMismatchError, FunctionUtil,
+    MISSING, MissingT, PlanesT, VSFunction, vs, KwargsT,
+    get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
 )
 
 from .abstract import Antialiaser, SingleRater
 from .antialiasers import Eedi3, Nnedi3
 from .enums import AADirection
-from .mask import resize_aa_mask
 
 __all__ = [
     'pre_aa',
@@ -298,36 +297,34 @@ def fine_aa(
 
 
 if TYPE_CHECKING:
+    from vsscale import ArtCNN, ShaderFile
     from vsdenoise import Prefilter
-    from vsscale import ArtCNN, FSRCNNXShaderT, ShaderFile
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
+        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
         downscaler: ScalerT | None = None,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
-        antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
-        **kwargs: Any
+        supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
+        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0
     ) -> vs.VideoNode:
         ...
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask_thr: int = 60, lmask: vs.VideoNode | EdgeDetectT = Prewitt,
+        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
         downscaler: ScalerT | None = None,
-        supersampler: ScalerT | FSRCNNXShaderT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
-        antialiaser: Antialiaser = Eedi3(0.125, 0.25, vthresh0=12, vthresh1=24, field=1, sclip_aa=None),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
-        **kwargs: Any
+        supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
+        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0
     ) -> vs.VideoNode:
         """
         Perform based anti-aliasing on a video clip.
 
         :param clip:            Clip to process.
         :param rfactor:         Resize factor for supersampling. Must be greater than 1.0. Default: 2.0.
+        :param mask:            Edge detection mask or function to generate it.  Default: Prewitt.
         :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255. Default: 60.
-        :param lmask:           Edge detection mask or function to generate it.  Default: Prewitt.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
                                 If None, downscaler will be set to Box if rfactor is an integer, and Catrom otherwise.
@@ -336,26 +333,26 @@ else:
                                 is performed. The supersampler should ideally be fairly sharp without
                                 introducing too much ringing.
                                 Default: ArtCNN.C16F64.
-        :param antialiaser:     Anti-aliasing function to be applied. Default: Eedi3.
-        :param prefilter:       Pre-filtering to be applied before anti-aliasing. Default: None.
+        :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
+        :param prefilter:       Prefilter to apply before anti-aliasing. Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
                                 Default: False
         :param planes:          Planes to process. Default: Luma only.
-        :param kwargs:          Additional keyword arguments to pass on to the antialiaser.
 
         :return:                Anti-aliased clip or edge detection mask if show_mask is True.
 
         :raises CustomRuntimeError:     If required packages are missing.
         :raises CustomOverflowError:    If rfactor is less than 1.0 or mask_thr is greater than 255.
         """
+
+        func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
+
         try:
             from vsdenoise import Prefilter  # noqa: F811
         except ModuleNotFoundError:
             raise CustomRuntimeError(
                 'You\'re missing the "vsdenoise" package! Install it with "pip install vsdenoise".', based_aa
             )
-
-        func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
 
         if supersampler is False:
             supersampler = downscaler = NoScale
@@ -365,7 +362,7 @@ else:
                     from vsscale import ArtCNN  # noqa: F811
                 except ModuleNotFoundError:
                     raise CustomRuntimeError(
-                        'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
+                        'You\'re missing the "vsscale" package! Install it with "pip install vsscale".', based_aa
                     )
 
                 supersampler = ArtCNN.C16F64()
@@ -374,62 +371,59 @@ else:
                     from vsscale import PlaceboShader  # noqa: F811
                 except ModuleNotFoundError:
                     raise CustomRuntimeError(
-                        'You\'re missing the "vsscale" package! Iinstall it with "pip install vsscale".', based_aa
+                        'You\'re missing the "vsscale" package! Install it with "pip install vsscale".', based_aa
                     )
 
                 supersampler = PlaceboShader(supersampler)
 
-        if prefilter is MISSING:
-            prefilter = Prefilter.NONE
-
-        if isinstance(prefilter, vs.VideoNode):
-            work_clip = plane(prefilter, 0) if func.luma_only else prefilter
-            check_ref_clip(func.work_clip, work_clip, based_aa)
-        else:
-            work_clip = prefilter(func.work_clip)
-
-        antialiaser = antialiaser.copy(**kwargs)
-
         if rfactor < 1.0:
             raise CustomOverflowError(
-                f'"rfactor" must be bigger than 1.0! ({rfactor})', based_aa
+                f'"rfactor" must be larger than 1.0! ({rfactor})', based_aa
             )
 
         if downscaler is None:
             downscaler = Box if float(rfactor).is_integer() else Catrom
 
-        if not isinstance(lmask, vs.VideoNode):
-            lmask = EdgeDetect.ensure_obj(lmask, based_aa)
+        if prefilter is MISSING:
+            prefilter = Prefilter.NONE
+
+        if prefilter:
+            if isinstance(prefilter, vs.VideoNode):
+                FormatsMismatchError.check(based_aa, func.work_clip, prefilter)
+                ss_clip = prefilter
+            else:
+                ss_clip = prefilter(func.work_clip)
+        else:
+            ss_clip = func.work_clip
+
+        if not isinstance(mask, vs.VideoNode):
+            mask = EdgeDetect.ensure_obj(mask, based_aa)
 
             if mask_thr > 255:
                 raise CustomOverflowError(
                     f'"mask_thr" must be less or equal than 255! ({mask_thr})', based_aa
                 )
 
-            lmask = lmask.edgemask(plane(work_clip, 0)).std.Binarize(scale_8bit(work_clip, mask_thr))
-            lmask = box_blur(lmask.std.Maximum()).std.Limiter()
-
-            if not func.luma_only:
-                lmask = Catrom.resample(join(lmask, lmask, lmask), work_clip)
+            mask = mask.edgemask(plane(func.work_clip, 0)).std.Binarize(scale_8bit(func.work_clip, mask_thr))
+            mask = box_blur(mask.std.Maximum()).std.Limiter()
 
         if show_mask:
-            return lmask
+            return mask
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (work_clip.width, work_clip.height)]
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
 
-        ss = supersampler.scale(work_clip, aaw, aah)
-        mclip_up = resize_aa_mask(lmask, ss.width, ss.height)
+        ss = supersampler.scale(ss_clip, aaw, aah)
+        mclip = Bilinear.scale(mask, ss.width, ss.height)
 
-        aa = antialiaser.interpolate(ss, False, sclip=ss, mclip=mclip_up).std.Transpose()
-        aa = antialiaser.interpolate(aa, False, sclip=aa, mclip=mclip_up.std.Transpose()).std.Transpose()
+        aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs)
 
-        aa = downscaler.scale(aa, work_clip.width, work_clip.height)
-        no_aa = downscaler.scale(ss, work_clip.width, work_clip.height)
+        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
+        no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
 
-        aa_merge = norm_expr([work_clip, aa, no_aa], "y z = x y ?")
-        aa_merge = work_clip.std.MaskedMerge(aa_merge, lmask)
+        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+        aa_merge = func.work_clip.std.MaskedMerge(aa_merge, mask)
 
         return func.return_clip(aa_merge)
