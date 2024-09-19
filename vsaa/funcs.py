@@ -310,7 +310,8 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
+        **kwargs: Any
     ) -> vs.VideoNode:
         ...
 else:
@@ -320,7 +321,8 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
+        **kwargs: Any
     ) -> vs.VideoNode:
         """
         Perform based anti-aliasing on a video clip.
@@ -422,7 +424,7 @@ else:
         ss = supersampler.scale(ss_clip, aaw, aah)
         mclip = Bilinear.scale(mask, ss.width, ss.height)
 
-        aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs)
+        aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
 
         aa = downscaler.scale(aa, ss_clip.width, ss_clip.height)
         no_aa = downscaler.scale(ss, ss_clip.width, ss_clip.height)
