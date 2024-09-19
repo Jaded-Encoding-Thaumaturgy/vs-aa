@@ -31,15 +31,19 @@ __all__ = [
 class _pre_aa:
     def custom(
         self, clip: vs.VideoNode, sharpen: VSFunction,
-        aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
+        aa: type[Antialiaser] | Antialiaser = Nnedi3,
         planes: PlanesT = None, **kwargs: Any
     ) -> vs.VideoNode:
         func = FunctionUtil(clip, pre_aa, planes)
 
+        field = kwargs.pop('field', 3)
+        if field < 2:
+            field += 2
+
         if isinstance(aa, Antialiaser):
-            aa = aa.copy(field=3, **kwargs)  # type: ignore
+            aa = aa.copy(field=field, **kwargs)  # type: ignore
         else:
-            aa = aa(field=3, **kwargs)
+            aa = aa(field=field, **kwargs)
 
         wclip = func.work_clip
 
@@ -53,7 +57,7 @@ class _pre_aa:
 
     def __call__(
         self, clip: vs.VideoNode, radius: int = 1, strength: int = 100,
-        aa: type[Antialiaser] | Antialiaser = Nnedi3(0, pscrn=1),
+        aa: type[Antialiaser] | Antialiaser = Nnedi3,
         planes: PlanesT = None, **kwargs: Any
     ) -> vs.VideoNode:
         return self.custom(
