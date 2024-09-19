@@ -424,10 +424,10 @@ else:
 
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs)
 
-        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
-        no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
+        aa = downscaler.scale(aa, ss_clip.width, ss_clip.height)
+        no_aa = downscaler.scale(ss, ss_clip.width, ss_clip.height)
 
-        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+        aa_merge = norm_expr([ss_clip, aa, no_aa], "y z = x y ?")
         aa_merge = func.work_clip.std.MaskedMerge(aa_merge, mask)
 
         return func.return_clip(aa_merge)
