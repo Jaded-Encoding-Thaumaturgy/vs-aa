@@ -5,13 +5,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import complexpr_available, norm_expr
-from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
+from vskernels import Bilinear, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
-from vsrgtools import RepairMode, MeanMode, box_blur, contrasharpening_median, repair, unsharp_masked
+from vsrgtools import MeanMode, RepairMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
-    CustomOverflowError, CustomRuntimeError, FormatsMismatchError, FunctionUtil,
-    MISSING, MissingT, PlanesT, VSFunction, vs, KwargsT,
-    get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split,
+    MISSING, CustomOverflowError, CustomRuntimeError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT, PlanesT,
+    VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -301,8 +300,8 @@ def fine_aa(
 
 
 if TYPE_CHECKING:
-    from vsscale import ArtCNN, ShaderFile
     from vsdenoise import Prefilter
+    from vsscale import ArtCNN, ShaderFile
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,

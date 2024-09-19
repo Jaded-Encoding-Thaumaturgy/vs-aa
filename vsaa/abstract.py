@@ -9,7 +9,7 @@ from typing import Any, Callable, overload
 
 from vsexprtools import norm_expr
 from vskernels import Catrom, Kernel, KernelT, NoShift, Scaler, ScalerT
-from vstools import T, core, inject_self, vs, vs_object, FieldBased, UnsupportedFieldBasedError
+from vstools import FieldBased, T, UnsupportedFieldBasedError, core, inject_self, vs, vs_object
 
 from .enums import AADirection
 
