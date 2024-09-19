@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from vsexprtools import complexpr_available, norm_expr
-from vskernels import Bilinear, Catrom, NoScale, Scaler, ScalerT
+from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import MeanMode, RepairMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
