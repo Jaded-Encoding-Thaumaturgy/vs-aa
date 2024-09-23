@@ -9,8 +9,9 @@ from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import MeanMode, RepairMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT, PlanesT,
-    VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT,
+    MissingT, PlanesT, VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit,
+    scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -305,7 +306,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
+        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -316,7 +317,7 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
+        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -330,6 +331,7 @@ else:
         :param rfactor:         Resize factor for supersampling. Must be greater than 1.0. Default: 2.0.
         :param mask:            Edge detection mask or function to generate it.  Default: Prewitt.
         :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255. Default: 60.
+        :param pskip:           Whether to skip processing if EEDI3 had no contribution to the pixel's output.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
                                 If None, downscaler will be set to Box if rfactor is an integer, and Catrom otherwise.
@@ -381,14 +383,6 @@ else:
 
                 supersampler = PlaceboShader(supersampler)
 
-        if rfactor < 1.0:
-            raise CustomOverflowError(
-                f'"rfactor" must be larger than 1.0! ({rfactor})', based_aa
-            )
-
-        if downscaler is None:
-            downscaler = Box if float(rfactor).is_integer() else Catrom
-
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
 
@@ -401,7 +395,21 @@ else:
         else:
             ss_clip = func.work_clip
 
-        if not isinstance(mask, vs.VideoNode):
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (ss_clip.width, ss_clip.height)]
+
+        if downscaler is None:
+            downscaler = Box if (
+                max(aaw, func.work_clip.width) % min(aaw, func.work_clip.width) == 0
+                and max(aah, func.work_clip.height) % min(aah, func.work_clip.height) == 0
+            ) else Catrom
+
+        if rfactor <= 0.0:
+            raise CustomValueError('rfactor must be greater than 0!', based_aa, rfactor)
+
+        if rfactor < 1.0:
+            downscaler, supersampler = supersampler, downscaler
+
+        if mask and not isinstance(mask, vs.VideoNode):
             mask = EdgeDetect.ensure_obj(mask, based_aa)
 
             if mask_thr > 255:
@@ -418,17 +426,17 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
-
         ss = supersampler.scale(ss_clip, aaw, aah)
-        mclip = Bilinear.scale(mask, ss.width, ss.height)
+        mclip = Bilinear.scale(mask, aaw, aah) if mask else None
 
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
+        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
-        aa = downscaler.scale(aa, ss_clip.width, ss_clip.height)
-        no_aa = downscaler.scale(ss, ss_clip.width, ss_clip.height)
+        if pskip:
+            no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
+            aa = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
 
-        aa_merge = norm_expr([ss_clip, aa, no_aa], "y z = x y ?")
-        aa_merge = func.work_clip.std.MaskedMerge(aa_merge, mask)
+        if mask:
+            aa = func.work_clip.std.MaskedMerge(aa, mask)
 
-        return func.return_clip(aa_merge)
+        return func.return_clip(aa)
