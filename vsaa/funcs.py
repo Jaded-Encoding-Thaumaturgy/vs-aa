@@ -326,17 +326,34 @@ else:
         """
         Perform based anti-aliasing on a video clip.
 
+        This function works by super- or downsampling the clip and applying Eedi3 to that image.
+        The result is then merged with the original clip using an edge mask, and it's limited
+        to areas where Eedi3 was actually applied.
+
+        Sharp supersamplers will yield better results, so long as they do not introduce too much ringing.
+        For downscalers, you will want to use a neutral kernel.
+
         :param clip:            Clip to process.
-        :param rfactor:         Resize factor for supersampling. Must be greater than 1.0. Default: 2.0.
+        :param rfactor:         Resize factor for supersampling. Values above 1.0 are recommended.
+                                Lower values may be useful for particularly extremely aliased content.
+                                Values closer to 1.0 will perform faster at the cost of precision.
+                                This value must be greater than 0.0. Default: 2.0.
         :param mask:            Edge detection mask or function to generate it.  Default: Prewitt.
-        :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255. Default: 60.
+        :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255.
+                                Only used if an EdgeDetect class is passed to `mask`. Default: 60.
         :param pskip:           Whether to skip processing if EEDI3 had no contribution to the pixel's output.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
-                                If None, downscaler will be set to Box if rfactor is an integer, and Catrom otherwise.
+                                If None, downscaler will be set to Box if the scale factor is an integer
+                                (after rounding), and Catrom otherwise.
+                                If rfactor is below 1.0, the downscaler will be used before antialiasing instead,
+                                and the supersampler will be used to scale the clip back to its original resolution.
                                 Default: None.
         :param supersampler:    Scaler used for supersampling before anti-aliasing. If False, no supersampling
-                                is performed. The supersampler should ideally be fairly sharp without
+                                is performed. If rfactor is below 1.0, the downscaler will be used before
+                                antialiasing instead, and the supersampler will be used to scale the clip
+                                back to its original resolution.
+                                The supersampler should ideally be fairly sharp without
                                 introducing too much ringing.
                                 Default: ArtCNN.C16F64.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
@@ -348,7 +365,7 @@ else:
         :return:                Anti-aliased clip or edge detection mask if show_mask is True.
 
         :raises CustomRuntimeError:     If required packages are missing.
-        :raises CustomOverflowError:    If rfactor is less than 1.0 or mask_thr is greater than 255.
+        :raises CustomValueError:       If rfactor is not above 0.0.
         """
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
