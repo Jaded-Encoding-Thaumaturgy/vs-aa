@@ -309,7 +309,8 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, postfilter = None,
+        show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         ...
@@ -320,7 +321,8 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, postfilter = None,
+        show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         """
@@ -443,11 +445,16 @@ else:
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
+        if postfilter:
+            aa_out = postfilter(aa)
+        else:
+            aa_out = aa
+
         if pskip:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
-            aa = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+            aa_out = norm_expr([func.work_clip, aa_out, aa, no_aa], "z a = x y ?")
 
         if mask:
-            aa = func.work_clip.std.MaskedMerge(aa, mask)
+            aa_out = func.work_clip.std.MaskedMerge(aa_out, mask)
 
-        return func.return_clip(aa)
+        return func.return_clip(aa_out)
