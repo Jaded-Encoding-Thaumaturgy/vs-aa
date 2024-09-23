@@ -397,11 +397,10 @@ else:
         aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (ss_clip.width, ss_clip.height)]
 
         if downscaler is None:
-            if ((max(aaw, func.work_clip.width) / min(aaw, func.work_clip.width)).is_integer()
-                    and (max(aah, func.work_clip.height) / min(aah, func.work_clip.height)).is_integer()):
-                downscaler = Box
-            else:
-                downscaler = Catrom
+            downscaler = Box if (
+                max(aaw, func.work_clip.width) % min(aaw, func.work_clip.width) == 0
+                and max(aah, func.work_clip.height) % min(aah, func.work_clip.height) == 0
+            ) else Catrom
 
         if rfactor < 1.0:
             downscaler, supersampler = supersampler, downscaler
