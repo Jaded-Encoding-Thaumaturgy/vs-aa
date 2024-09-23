@@ -305,7 +305,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT | None = Prewitt, mask_thr: int = 60, pskip: bool = True,
+        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -316,7 +316,7 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT | None = Prewitt, mask_thr: int = 60, pskip: bool = True,
+        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
