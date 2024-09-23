@@ -300,7 +300,6 @@ def fine_aa(
 
 
 if TYPE_CHECKING:
-    from vsdenoise import Prefilter
     from vsscale import ArtCNN, ShaderFile
 
     def based_aa(
@@ -309,7 +308,8 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
+        show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         ...
@@ -320,7 +320,8 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, show_mask: bool = False, planes: PlanesT = 0,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
+        show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
         """
@@ -358,6 +359,7 @@ else:
                                 Default: ArtCNN.C16F64.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
         :param prefilter:       Prefilter to apply before anti-aliasing. Default: None.
+        :param postfilter:      Postfilter to apply after anti-aliasing. Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
                                 Default: False
         :param planes:          Planes to process. Default: Luma only.
@@ -369,13 +371,6 @@ else:
         """
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
-
-        try:
-            from vsdenoise import Prefilter  # noqa: F811
-        except ModuleNotFoundError:
-            raise CustomRuntimeError(
-                'You\'re missing the "vsdenoise" package! Install it with "pip install vsdenoise".', based_aa
-            )
 
         if supersampler is False:
             supersampler = downscaler = NoScale
@@ -398,9 +393,6 @@ else:
                     )
 
                 supersampler = PlaceboShader(supersampler)
-
-        if prefilter is MISSING:
-            prefilter = Prefilter.NONE
 
         if prefilter:
             if isinstance(prefilter, vs.VideoNode):
@@ -443,11 +435,13 @@ else:
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
+        aa_out = postfilter(aa) if postfilter else aa
+
         if pskip:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
-            aa = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+            aa_out = norm_expr([func.work_clip, aa_out, aa, no_aa], "z a = x y ?")
 
         if mask:
-            aa = func.work_clip.std.MaskedMerge(aa, mask)
+            aa_out = func.work_clip.std.MaskedMerge(aa_out, mask)
 
-        return func.return_clip(aa)
+        return func.return_clip(aa_out)
