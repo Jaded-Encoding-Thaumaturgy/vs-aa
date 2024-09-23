@@ -305,7 +305,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60, pskip: bool = True,
+        mask: vs.VideoNode | EdgeDetectT | None = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -316,7 +316,7 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60, pskip: bool = True,
+        mask: vs.VideoNode | EdgeDetectT | None = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -405,7 +405,7 @@ else:
         if rfactor < 1.0:
             downscaler, supersampler = supersampler, downscaler
 
-        if not isinstance(mask, vs.VideoNode):
+        if mask and not isinstance(mask, vs.VideoNode):
             mask = EdgeDetect.ensure_obj(mask, based_aa)
 
             if mask_thr > 255:
@@ -433,6 +433,7 @@ else:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
             aa = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
 
-        aa_merge = func.work_clip.std.MaskedMerge(aa, mask)
+        if mask:
+            aa = func.work_clip.std.MaskedMerge(aa, mask)
 
-        return func.return_clip(aa_merge)
+        return func.return_clip(aa)
