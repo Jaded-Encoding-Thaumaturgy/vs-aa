@@ -381,14 +381,6 @@ else:
 
                 supersampler = PlaceboShader(supersampler)
 
-        if rfactor < 1.0:
-            raise CustomOverflowError(
-                f'"rfactor" must be larger than 1.0! ({rfactor})', based_aa
-            )
-
-        if downscaler is None:
-            downscaler = Box if float(rfactor).is_integer() else Catrom
-
         if prefilter is MISSING:
             prefilter = Prefilter.NONE
 
@@ -400,6 +392,17 @@ else:
                 ss_clip = prefilter(func.work_clip)
         else:
             ss_clip = func.work_clip
+
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (ss_clip.width, ss_clip.height)]
+
+        if downscaler is None:
+            if (aaw / func.work_clip.width).is_integer() and (aah / func.work_clip.height).is_integer():
+                downscaler = Box
+            else:
+                downscaler = Catrom
+
+        if rfactor < 1.0:
+            downscaler, supersampler = supersampler, downscaler
 
         if not isinstance(mask, vs.VideoNode):
             mask = EdgeDetect.ensure_obj(mask, based_aa)
@@ -418,17 +421,15 @@ else:
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
-
         ss = supersampler.scale(ss_clip, aaw, aah)
-        mclip = Bilinear.scale(mask, ss.width, ss.height)
+        mclip = Bilinear.scale(mask, aaw, aah)
 
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
 
-        aa = downscaler.scale(aa, ss_clip.width, ss_clip.height)
-        no_aa = downscaler.scale(ss, ss_clip.width, ss_clip.height)
+        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
+        no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
 
-        aa_merge = norm_expr([ss_clip, aa, no_aa], "y z = x y ?")
+        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
         aa_merge = func.work_clip.std.MaskedMerge(aa_merge, mask)
 
         return func.return_clip(aa_merge)
