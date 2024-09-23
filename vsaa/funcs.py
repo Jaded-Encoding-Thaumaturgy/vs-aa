@@ -411,7 +411,7 @@ else:
         else:
             ss_clip = func.work_clip
 
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (ss_clip.width, ss_clip.height)]
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
 
         if downscaler is None:
             downscaler = Box if (
