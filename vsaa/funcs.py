@@ -312,18 +312,6 @@ if TYPE_CHECKING:
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
-        ...
-else:
-    def based_aa(
-        clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
-        downscaler: ScalerT | None = None,
-        supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
-        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
-        show_mask: bool = False, planes: PlanesT = 0,
-        **kwargs: Any
-    ) -> vs.VideoNode:
         """
         Perform based anti-aliasing on a video clip.
 
@@ -369,6 +357,19 @@ else:
         :raises CustomRuntimeError:     If required packages are missing.
         :raises CustomValueError:       If rfactor is not above 0.0.
         """
+
+        ...
+else:
+    def based_aa(
+        clip: vs.VideoNode, rfactor: float = 2.0,
+        mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
+        downscaler: ScalerT | None = None,
+        supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
+        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
+        show_mask: bool = False, planes: PlanesT = 0,
+        **kwargs: Any
+    ) -> vs.VideoNode:
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
 
