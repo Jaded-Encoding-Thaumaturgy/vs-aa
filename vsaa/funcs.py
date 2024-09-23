@@ -423,9 +423,8 @@ else:
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
         ss = supersampler.scale(ss_clip, aaw, aah)
-        mclip = Bilinear.scale(mask, aaw, aah)
 
-        aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
+        aa = Eedi3(mclip=Bilinear.scale(mask, aaw, aah) if mask else None, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
