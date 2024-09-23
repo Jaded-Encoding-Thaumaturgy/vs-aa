@@ -300,7 +300,6 @@ def fine_aa(
 
 
 if TYPE_CHECKING:
-    from vsdenoise import Prefilter
     from vsscale import ArtCNN, ShaderFile
 
     def based_aa(
@@ -309,7 +308,7 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode = Prefilter.NONE, postfilter = None,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
@@ -321,7 +320,7 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: Prefilter | vs.VideoNode | MissingT = MISSING, postfilter = None,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
@@ -372,13 +371,6 @@ else:
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
 
-        try:
-            from vsdenoise import Prefilter  # noqa: F811
-        except ModuleNotFoundError:
-            raise CustomRuntimeError(
-                'You\'re missing the "vsdenoise" package! Install it with "pip install vsdenoise".', based_aa
-            )
-
         if supersampler is False:
             supersampler = downscaler = NoScale
         else:
@@ -400,9 +392,6 @@ else:
                     )
 
                 supersampler = PlaceboShader(supersampler)
-
-        if prefilter is MISSING:
-            prefilter = Prefilter.NONE
 
         if prefilter:
             if isinstance(prefilter, vs.VideoNode):
