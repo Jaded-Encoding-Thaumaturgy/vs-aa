@@ -305,7 +305,7 @@ if TYPE_CHECKING:
 
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
+        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -316,7 +316,7 @@ if TYPE_CHECKING:
 else:
     def based_aa(
         clip: vs.VideoNode, rfactor: float = 2.0,
-        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60,
+        mask: vs.VideoNode | EdgeDetectT = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
@@ -330,6 +330,7 @@ else:
         :param rfactor:         Resize factor for supersampling. Must be greater than 1.0. Default: 2.0.
         :param mask:            Edge detection mask or function to generate it.  Default: Prewitt.
         :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255. Default: 60.
+        :param pskip:           Whether to skip processing if EEDI3 had no contribution to the pixel's output.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
                                 If None, downscaler will be set to Box if rfactor is an integer, and Catrom otherwise.
@@ -427,9 +428,11 @@ else:
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
-        no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
 
-        aa_merge = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
-        aa_merge = func.work_clip.std.MaskedMerge(aa_merge, mask)
+        if pskip:
+            no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
+            aa = norm_expr([func.work_clip, aa, no_aa], "y z = x y ?")
+
+        aa_merge = func.work_clip.std.MaskedMerge(aa, mask)
 
         return func.return_clip(aa_merge)
