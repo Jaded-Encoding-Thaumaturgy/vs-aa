@@ -359,6 +359,7 @@ else:
                                 Default: ArtCNN.C16F64.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
         :param prefilter:       Prefilter to apply before anti-aliasing. Default: None.
+        :param postfilter:      Postfilter to apply after anti-aliasing. Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
                                 Default: False
         :param planes:          Planes to process. Default: Luma only.
