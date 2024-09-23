@@ -9,8 +9,9 @@ from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import MeanMode, RepairMode, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
-    MISSING, CustomOverflowError, CustomRuntimeError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT, PlanesT,
-    VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
+    MISSING, CustomOverflowError, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT,
+    MissingT, PlanesT, VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit,
+    scale_value, split, vs
 )
 
 from .abstract import Antialiaser, SingleRater
@@ -401,6 +402,9 @@ else:
                 max(aaw, func.work_clip.width) % min(aaw, func.work_clip.width) == 0
                 and max(aah, func.work_clip.height) % min(aah, func.work_clip.height) == 0
             ) else Catrom
+
+        if rfactor <= 0.0:
+            raise CustomValueError('rfactor must be greater than 0!', based_aa, rfactor)
 
         if rfactor < 1.0:
             downscaler, supersampler = supersampler, downscaler
