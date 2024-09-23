@@ -435,10 +435,7 @@ else:
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
-        if postfilter:
-            aa_out = postfilter(aa)
-        else:
-            aa_out = aa
+        aa_out = postfilter(aa) if postfilter else aa
 
         if pskip:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
