@@ -424,8 +424,10 @@ else:
             if isinstance(prefilter, vs.VideoNode):
                 FormatsMismatchError.check(based_aa, func.work_clip, prefilter)
                 ss_clip = prefilter
-            else:
+            elif callable(prefilter):
                 ss_clip = prefilter(func.work_clip)
+            else:
+                raise CustomValueError('Invalid prefilter!', based_aa, prefilter)
         else:
             ss_clip = func.work_clip
 
