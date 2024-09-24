@@ -375,15 +375,6 @@ else:
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
 
-        if mask and not isinstance(mask, vs.VideoNode):
-            mask = EdgeDetect.ensure_obj(mask, based_aa)
-            mask = mask.edgemask(plane(func.work_clip, 0))
-            mask = mask.std.Binarize(scale_8bit(func.work_clip, min(mask_thr, 255)))
-            mask = box_blur(mask.std.Maximum()).std.Limiter()
-
-        if show_mask:
-            return mask
-
         if supersampler is False:
             supersampler = downscaler = NoScale
         else:
@@ -406,6 +397,29 @@ else:
 
                 supersampler = PlaceboShader(supersampler)
 
+        if rfactor <= 0.0:
+            raise CustomValueError('rfactor must be greater than 0!', based_aa, rfactor)
+        
+        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
+
+        if downscaler is None:
+            downscaler = Box if (
+                max(aaw, func.work_clip.width) % min(aaw, func.work_clip.width) == 0
+                and max(aah, func.work_clip.height) % min(aah, func.work_clip.height) == 0
+            ) else Catrom
+
+        if rfactor < 1.0:
+            downscaler, supersampler = supersampler, downscaler
+
+        if mask and not isinstance(mask, vs.VideoNode):
+            mask = EdgeDetect.ensure_obj(mask, based_aa)
+            mask = mask.edgemask(plane(func.work_clip, 0))
+            mask = mask.std.Binarize(scale_8bit(func.work_clip, min(mask_thr, 255)))
+            mask = box_blur(mask.std.Maximum()).std.Limiter()
+
+        if show_mask:
+            return mask
+
         if prefilter:
             if isinstance(prefilter, vs.VideoNode):
                 FormatsMismatchError.check(based_aa, func.work_clip, prefilter)
@@ -417,20 +431,6 @@ else:
 
         if postfilter is None:
             postfilter = lambda x: MeanMode.MEDIAN(x, func.work_clip, bilateral(x))
-
-        aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
-
-        if downscaler is None:
-            downscaler = Box if (
-                max(aaw, func.work_clip.width) % min(aaw, func.work_clip.width) == 0
-                and max(aah, func.work_clip.height) % min(aah, func.work_clip.height) == 0
-            ) else Catrom
-
-        if rfactor <= 0.0:
-            raise CustomValueError('rfactor must be greater than 0!', based_aa, rfactor)
-
-        if rfactor < 1.0:
-            downscaler, supersampler = supersampler, downscaler
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
