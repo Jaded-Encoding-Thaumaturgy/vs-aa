@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from vsexprtools import complexpr_available, norm_expr
 from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
-from vsrgtools import MeanMode, RepairMode, box_blur, contrasharpening_median, repair, unsharp_masked
+from vsrgtools import MeanMode, RepairMode, bilateral, box_blur, contrasharpening_median, repair, unsharp_masked
 from vstools import (
     MISSING, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT, PlanesT,
     VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_8bit, scale_value, split, vs
@@ -308,7 +308,7 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
@@ -347,7 +347,9 @@ if TYPE_CHECKING:
                                 Default: ArtCNN.C16F64.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
         :param prefilter:       Prefilter to apply before anti-aliasing. Default: None.
-        :param postfilter:      Postfilter to apply after anti-aliasing. Default: None.
+        :param postfilter:      Postfilter to apply after anti-aliasing.
+                                If None, will apply a median filtered bilateral smoother to clean halos.
+                                Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
                                 Default: False
         :param planes:          Planes to process. Default: Luma only.
@@ -366,12 +368,21 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None = None,
+        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
+
+        if mask and not isinstance(mask, vs.VideoNode):
+            mask = EdgeDetect.ensure_obj(mask, based_aa)
+            mask = mask.edgemask(plane(func.work_clip, 0))
+            mask = mask.std.Binarize(scale_8bit(func.work_clip, min(mask_thr, 255)))
+            mask = box_blur(mask.std.Maximum()).std.Limiter()
+
+        if show_mask:
+            return mask
 
         if supersampler is False:
             supersampler = downscaler = NoScale
@@ -404,6 +415,9 @@ else:
         else:
             ss_clip = func.work_clip
 
+        if postfilter is None:
+            postfilter = lambda x: MeanMode.MEDIAN(x, func.work_clip, bilateral(x))
+
         aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
 
         if downscaler is None:
@@ -417,15 +431,6 @@ else:
 
         if rfactor < 1.0:
             downscaler, supersampler = supersampler, downscaler
-
-        if mask and not isinstance(mask, vs.VideoNode):
-            mask = EdgeDetect.ensure_obj(mask, based_aa)
-            mask = mask.edgemask(plane(func.work_clip, 0))
-            mask = mask.std.Binarize(scale_8bit(func.work_clip, min(mask_thr, 255)))
-            mask = box_blur(mask.std.Maximum()).std.Limiter()
-
-        if show_mask:
-            return mask
 
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
