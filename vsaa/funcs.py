@@ -346,10 +346,13 @@ if TYPE_CHECKING:
                                 introducing too much ringing.
                                 Default: ArtCNN.C16F64.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
-        :param prefilter:       Prefilter to apply before anti-aliasing. Default: None.
+        :param prefilter:       Prefilter to apply before anti-aliasing.
+                                Must be a VideoNode, a function that takes a VideoNode and returns a VideoNode,
+                                or None. Default: None.
         :param postfilter:      Postfilter to apply after anti-aliasing.
-                                If None, will apply a median filtered bilateral smoother to clean halos.
-                                Default: None.
+                                Must be a function that takes a VideoNode and returns a VideoNode, or None.
+                                If None, applies a median-filtered bilateral smoother to clean halos
+                                created during antialiasing. Default: None.
         :param show_mask:       If True, returns the edge detection mask instead of the processed clip.
                                 Default: False
         :param planes:          Planes to process. Default: Luma only.
@@ -357,7 +360,7 @@ if TYPE_CHECKING:
         :return:                Anti-aliased clip or edge detection mask if show_mask is True.
 
         :raises CustomRuntimeError:     If required packages are missing.
-        :raises CustomValueError:       If rfactor is not above 0.0.
+        :raises CustomValueError:       If rfactor is not above 0.0, or invalid prefilter/postfilter is passed.
         """
 
         ...
