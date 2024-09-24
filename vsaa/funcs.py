@@ -429,9 +429,6 @@ else:
         else:
             ss_clip = func.work_clip
 
-        if postfilter is None:
-            postfilter = lambda x: MeanMode.MEDIAN(x, func.work_clip, bilateral(x))
-
         supersampler = Scaler.ensure_obj(supersampler, based_aa)
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
@@ -441,7 +438,12 @@ else:
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
-        aa_out = postfilter(aa) if postfilter else aa
+        if postfilter is None:
+            aa_out = MeanMode.MEDIAN(aa, func.work_clip, bilateral(aa))
+        elif postfilter:
+            aa_out = postfilter(aa)
+        else:
+            aa_out = aa
 
         if pskip:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
