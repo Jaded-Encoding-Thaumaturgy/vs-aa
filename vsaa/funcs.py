@@ -441,12 +441,14 @@ else:
         mclip = Bilinear.scale(mask, aaw, aah) if mask else None
 
         aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
-        aa_out = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
+        aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
         if postfilter is None:
-            aa_out = MeanMode.MEDIAN(aa_out, func.work_clip, bilateral(aa))
+            aa_out = MeanMode.MEDIAN(aa, func.work_clip, bilateral(aa))
         elif callable(postfilter):
-            aa_out = postfilter(aa_out)
+            aa_out = postfilter(aa)
+        elif postfilter is False:
+            aa_out = aa
         else:
             raise CustomValueError('Invalid postfilter!', based_aa, postfilter)
 
