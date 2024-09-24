@@ -399,7 +399,7 @@ else:
 
         if rfactor <= 0.0:
             raise CustomValueError('rfactor must be greater than 0!', based_aa, rfactor)
-        
+
         aaw, aah = [(round(r * rfactor) + 1) & ~1 for r in (func.work_clip.width, func.work_clip.height)]
 
         if downscaler is None:
