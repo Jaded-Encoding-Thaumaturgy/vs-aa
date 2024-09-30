@@ -309,4 +309,6 @@ class Antialiaser(DoubleRater, SuperSampler):
 
         clip = self.preprocess_clip(clip)
 
+        kwargs.pop('field', None)
+
         return DoubleRater._aa(self, clip, y, x, **kwargs)
