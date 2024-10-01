@@ -307,6 +307,7 @@ if TYPE_CHECKING:
         mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
+        double_rate: bool = False,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
         prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
         show_mask: bool = False, planes: PlanesT = 0,
@@ -345,6 +346,10 @@ if TYPE_CHECKING:
                                 The supersampler should ideally be fairly sharp without
                                 introducing too much ringing.
                                 Default: ArtCNN.C16F64.
+        :param double_rate:     Whether to use double-rate antialiasing.
+                                If True, both fields will be processed separately, which may improve
+                                anti-aliasing strength at the cost of increased processing time and detail loss.
+                                Default: False.
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
         :param prefilter:       Prefilter to apply before anti-aliasing.
                                 Must be a VideoNode, a function that takes a VideoNode and returns a VideoNode,
@@ -370,6 +375,7 @@ else:
         mask: vs.VideoNode | EdgeDetectT | Literal[False] = Prewitt, mask_thr: int = 60, pskip: bool = True,
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
+        double_rate: bool = False,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
         prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
         show_mask: bool = False, planes: PlanesT = 0,
@@ -440,7 +446,11 @@ else:
         ss = supersampler.scale(ss_clip, aaw, aah)
         mclip = Bilinear.scale(mask, aaw, aah) if mask else None
 
-        aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
+        if double_rate:
+            aa = Eedi3(mclip=mclip, sclip_aa=True).draa(ss, **eedi3_kwargs | kwargs)
+        else:
+            aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
+
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
         if postfilter is None:
