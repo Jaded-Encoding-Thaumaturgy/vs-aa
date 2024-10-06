@@ -444,7 +444,7 @@ else:
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
         ss = supersampler.scale(ss_clip, aaw, aah)
-        mclip = Bilinear.scale(mask, aaw, aah) if mask else None
+        mclip = Bilinear.scale(mask, ss.width, ss.height) if mask else None
 
         if double_rate:
             aa = Eedi3(mclip=mclip, sclip_aa=True).draa(ss, **eedi3_kwargs | kwargs)
