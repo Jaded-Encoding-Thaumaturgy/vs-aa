@@ -7,22 +7,18 @@ from typing import TYPE_CHECKING, Any, Literal
 from vsexprtools import complexpr_available, norm_expr
 from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
-from vsrgtools import MeanMode, RepairMode, bilateral, box_blur, contrasharpening_median, repair, unsharp_masked
+from vsrgtools import MeanMode, bilateral, box_blur, unsharp_masked
 from vstools import (
     MISSING, ColorRange, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT,
-    PlanesT, VSFunction, get_h, get_peak_value, get_w, get_y, join, normalize_planes, plane, scale_value, split, vs
+    PlanesT, VSFunction, get_peak_value, get_y, plane, scale_value, vs
 )
 
-from .abstract import Antialiaser, SingleRater
+from .abstract import Antialiaser
 from .antialiasers import Eedi3, Nnedi3
-from .enums import AADirection
 
 __all__ = [
     'pre_aa',
-    'upscaled_sraa',
-    'transpose_aa',
     'clamp_aa',
-    'fine_aa',
     'based_aa'
 ]
 
@@ -65,115 +61,6 @@ class _pre_aa:
 
 
 pre_aa = _pre_aa()
-
-
-def upscaled_sraa(
-    clip: vs.VideoNode, rfactor: float = 1.5,
-    width: int | None = None, height: int | None = None,
-    ssfunc: ScalerT = Nnedi3(), aafunc: SingleRater = Eedi3(),
-    direction: AADirection = AADirection.BOTH,
-    downscaler: ScalerT = Catrom(), planes: PlanesT = 0
-) -> vs.VideoNode:
-    """
-    Super-sampled single-rate AA for heavy aliasing and broken line-art.
-
-    It works by super-sampling the clip, performing AA, and then downscaling again.
-    Downscaling can be disabled by setting `downscaler` to `None`, returning the super-sampled luma clip.
-    The dimensions of the downscaled clip can also be adjusted by setting `height` or `width`.
-    Setting either `height`, `width` or 1,2 in planes will also scale the chroma accordingly.
-
-    :param clip:            Clip to process.
-    :param rfactor:         Image enlargement factor.
-                            It is not recommended to go below 1.3
-    :param width:           Target resolution width. If None, determined from `height`.
-    :param height:          Target resolution height.
-    :param ssfunc:          Super-sampler used for upscaling before AA.
-    :param aafunc:          Function used to antialias after super-sampling.
-    :param direction:       Direction in which antialiasing will be performed.
-    :param downscaler:      Downscaler to use after super-sampling.
-    :param planes:          Planes to do antialiasing on.
-
-    :return:                Antialiased clip.
-
-    :raises ValueError:     ``rfactor`` is not above 1.
-    """
-
-    import warnings
-
-    warnings.warn(
-        "upscaled_sraa: 'This function is deprecated and will be removed in future versions. "
-        "Please use `based_aa` instead.",
-        DeprecationWarning,
-    )
-
-    assert clip.format
-
-    planes = normalize_planes(clip, planes)
-
-    if height is None:
-        height = clip.height
-
-    if width is None:
-        if height == clip.height:
-            width = clip.width
-        else:
-            width = get_w(height, clip)
-
-    aa_chroma = 1 in planes or 2 in planes
-    scale_chroma = ((clip.width, clip.height) != (width, height)) or aa_chroma
-
-    work_clip, *chroma = [clip] if scale_chroma else split(clip)
-
-    if rfactor <= 1:
-        raise ValueError('upscaled_sraa: rfactor must be above 1!')
-
-    ssh = get_h(work_clip.width * rfactor, work_clip, 2)
-    ssw = get_w(ssh, work_clip, 2)
-
-    ssfunc = Scaler.ensure_obj(ssfunc, upscaled_sraa)
-    downscaler = Scaler.ensure_obj(downscaler, upscaled_sraa)
-
-    up = ssfunc.scale(work_clip, ssw, ssh)
-    up, *chroma = [up] if aa_chroma or scale_chroma else [up, *chroma]
-
-    aa = aafunc.aa(up, *direction.to_yx())
-
-    if downscaler:
-        aa = downscaler.scale(aa, width, height)
-
-    if not chroma:
-        return aa
-
-    if 0 not in planes:
-        return join(clip, aa, clip.format.color_family)
-
-    return join([aa, *chroma], clip.format.color_family)
-
-
-def transpose_aa(clip: vs.VideoNode, aafunc: SingleRater, planes: PlanesT = 0) -> vs.VideoNode:
-    """
-    Perform transposed AA.
-
-    :param clip:        Clip to process.
-    :param aafun:       Antialiasing function.
-    :return:            Antialiased clip.
-    """
-
-    func = FunctionUtil(clip, transpose_aa, planes)
-
-    import warnings
-
-    warnings.warn(
-        f"{func.func}: 'This function is deprecated and will be removed in future versions. "
-        "Please use `transpose_first` in your `aafunc` instead.'",
-        DeprecationWarning,
-    )
-
-    aafunc = aafunc.copy(transpose_first=True, drop_fields=False)  # type: ignore
-
-    aa = aafunc.aa(func.work_clip)  # type: ignore
-
-    return func.return_clip(aa)
 
 
 def clamp_aa(
@@ -255,48 +142,6 @@ def clamp_aa(
         clamped = func.work_clip.std.MaskedMerge(clamped, mask, func.norm_planes)  # type: ignore
 
     return func.return_clip(clamped)
-
-
-def fine_aa(
-    clip: vs.VideoNode, taa: bool = False,
-    singlerater: SingleRater = Eedi3(),
-    rep: int | RepairMode = RepairMode.LINE_CLIP_STRONG,
-    planes: PlanesT = 0
-) -> vs.VideoNode:
-    """
-    Taa and optionally repair clip that results in overall lighter anti-aliasing, downscaled with Spline kernel.
-
-    :param clip:            Clip to process.
-    :param taa:             Whether to perform a normal or transposed aa
-    :param singlerater:     Singlerater used for aa.
-    :param rep:             Repair mode.
-
-    :return:                Antialiased clip.
-    """
-
-    assert clip.format
-
-    singlerater = singlerater.copy(shifter=Bilinear())  # type: ignore
-
-    func = FunctionUtil(clip, fine_aa, planes)
-
-    import warnings
-
-    warnings.warn(
-        f"{func.func}: 'This function is deprecated and will be removed in future versions.'",
-        DeprecationWarning,
-    )
-
-    if taa:
-        aa = transpose_aa(func.work_clip, singlerater)
-    else:
-        aa = singlerater.aa(func.work_clip)  # type: ignore
-
-    contra = contrasharpening_median(func.work_clip, aa, planes=func.norm_planes)
-
-    repaired = repair(contra, func.work_clip, func.norm_seq(rep))
-
-    return func.return_clip(repaired)
 
 
 if TYPE_CHECKING:
