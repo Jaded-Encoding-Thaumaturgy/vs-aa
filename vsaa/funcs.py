@@ -133,7 +133,7 @@ def clamp_aa(
 
     if mask:
         if not isinstance(mask, vs.VideoNode):
-            bin_thr = scale_value(mthr, 32, clip)
+            bin_thr = scale_value(mthr, 32, clip, range_out=ColorRange.FULL)
 
             mask = ScharrTCanny.ensure_obj(mask).edgemask(func.work_clip)  # type: ignore
             mask = box_blur(mask.std.Binarize(bin_thr).std.Maximum())
@@ -266,9 +266,10 @@ else:
             downscaler, supersampler = supersampler, downscaler
 
         if mask and not isinstance(mask, vs.VideoNode):
+            mask_thr = scale_value(min(mask_thr, 255), 8, func.work_clip, ColorRange.FULL, ColorRange.FULL)
             mask = EdgeDetect.ensure_obj(mask, based_aa)
             mask = mask.edgemask(plane(func.work_clip, 0))
-            mask = mask.std.Binarize(scale_value(min(mask_thr, 255), 8, func.work_clip, ColorRange.FULL))
+            mask = mask.std.Binarize(mask_thr)
             mask = box_blur(mask.std.Maximum()).std.Limiter()
 
         if show_mask:
