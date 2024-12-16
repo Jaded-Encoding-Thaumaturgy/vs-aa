@@ -126,10 +126,10 @@ def clamp_aa(
             else:
                 expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
 
-            clamped = norm_expr(
-                [func.work_clip, ref, weak_aa, strong_aa] if ref else [func.work_clip, strong_aa, strong_aa],
-                expr, func.norm_planes
-            )
+        clamped = norm_expr(
+            [func.work_clip, ref, weak_aa, strong_aa] if ref else [func.work_clip, strong_aa, strong_aa],
+            expr, func.norm_planes
+        )
 
     if mask:
         if not isinstance(mask, vs.VideoNode):
