@@ -4,13 +4,13 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from vsexprtools import complexpr_available, norm_expr
+from vsexprtools import norm_expr
 from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import MeanMode, bilateral, box_blur, unsharp_masked
 from vstools import (
     MISSING, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT,
-    PlanesT, VSFunction, get_peak_value, get_y, plane, scale_mask, vs
+    PlanesT, VSFunction, get_peak_value, get_y, plane, scale_mask, vs, fallback
 )
 
 from .abstract import Antialiaser
@@ -93,18 +93,18 @@ def clamp_aa(
             weak_aa.opencl = opencl
 
         weak_aa = weak_aa.aa(func.work_clip)
-    elif func.luma_only:
-        weak_aa = get_y(weak_aa)
 
     if not isinstance(strong_aa, vs.VideoNode):
         if opencl is not None and hasattr(strong_aa, 'opencl'):
             strong_aa.opencl = opencl
 
         strong_aa = strong_aa.aa(func.work_clip)
-    elif func.luma_only:
-        strong_aa = get_y(strong_aa)
 
-    if ref and func.luma_only:
+    ref = fallback(ref, func.work_clip)
+
+    if func.luma_only:
+        weak_aa = get_y(weak_aa)
+        strong_aa = get_y(strong_aa)
         ref = get_y(ref)
 
     if func.work_clip.format.sample_type == vs.INTEGER:
@@ -112,24 +112,11 @@ def clamp_aa(
     else:
         thr = strength / 219
 
-    if thr == 0:
-        clamped = MeanMode.MEDIAN(func.work_clip, weak_aa, strong_aa, planes=planes)
-    else:
-        if ref:
-            if complexpr_available:
-                expr = f'y z - ZD! y a - AD! ZD@ AD@ xor x ZD@ abs AD@ abs < a z {thr} + min z {thr} - max a ? ?'
-            else:
-                expr = f'y z - y a - xor x y z - abs y a - abs < a z {thr} + min z {thr} - max a ? ?'
-        else:
-            if complexpr_available:
-                expr = f'x y - XYD! x z - XZD! XYD@ XZD@ xor x XYD@ abs XZD@ abs < z y {thr} + min y {thr} - max z ? ?'
-            else:
-                expr = f'x y - x z - xor x x y - abs x z - abs < z y {thr} + min y {thr} - max z ? ?'
-
-        clamped = norm_expr(
-            [func.work_clip, ref, weak_aa, strong_aa] if ref else [func.work_clip, strong_aa, strong_aa],
-            expr, func.norm_planes
-        )
+    clamped = norm_expr(
+        [ref, weak_aa, strong_aa, func.work_clip],
+        'x y - D1! x z - D2! xor a D1@ abs D2@ abs < z y {thr} - y {thr} + clip z ? ?',
+        thr=thr, planes=func.norm_planes
+    )
 
     if mask:
         if not isinstance(mask, vs.VideoNode):
