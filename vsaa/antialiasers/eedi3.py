@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from vstools import CustomValueError, core, inject_self, vs
 
@@ -112,6 +112,10 @@ class EEDI3(_Antialiaser):
     def kernel_radius(self) -> int:
         return self.nrad
 
+    def __del__(self) -> None:
+        if not TYPE_CHECKING:
+            self.mclip = None
+
 
 class Eedi3SS(EEDI3, SuperSampler):
     ...
@@ -131,6 +135,11 @@ class Eedi3SR(EEDI3, SingleRater):
             return dict(mclip=self._mclips[0])
         else:
             return dict(mclip=self._mclips[1])
+
+    def __del__(self) -> None:
+        if not TYPE_CHECKING:
+            self._mclips = None
+            self.mclip = 0
 
     def __vs_del__(self, core_id: int) -> None:
         self._mclips = None
