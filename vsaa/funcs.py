@@ -261,6 +261,8 @@ else:
             mask = limiter(mask, func=based_aa)
 
         if show_mask:
+            if mask is False:
+                raise CustomValueError("Can't show mask when mask is False!", based_aa, mask)
             return mask
 
         if callable(prefilter):
