@@ -279,10 +279,13 @@ else:
         ss = supersampler.scale(ss_clip, aaw, aah)
         mclip = Bilinear.scale(mask, ss.width, ss.height) if mask else None
 
+        eedi3 = Eedi3(mclip=mclip, sclip_aa=True)
+        eedi3_kwargs = (eedi3_kwargs or KwargsT()) | kwargs
+
         if double_rate:
-            aa = Eedi3(mclip=mclip, sclip_aa=True).draa(ss, **eedi3_kwargs | kwargs)
+            aa = eedi3.draa(ss, **eedi3_kwargs)
         else:
-            aa = Eedi3(mclip=mclip, sclip_aa=True).aa(ss, **eedi3_kwargs | kwargs)
+            aa = eedi3.aa(ss, **eedi3_kwargs)
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
