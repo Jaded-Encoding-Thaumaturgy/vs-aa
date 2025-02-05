@@ -9,8 +9,8 @@ from vskernels import Bilinear, Box, Catrom, NoScale, Scaler, ScalerT
 from vsmasktools import EdgeDetect, EdgeDetectT, Prewitt, ScharrTCanny
 from vsrgtools import MeanMode, bilateral, box_blur, unsharp_masked
 from vstools import (
-    MISSING, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT, MissingT,
-    PlanesT, VSFunction, get_peak_value, get_y, plane, scale_mask, vs, fallback
+    MISSING, CustomRuntimeError, CustomValueError, FormatsMismatchError, FunctionUtil, KwargsT,
+    MissingT, PlanesT, VSFunction, fallback, get_peak_value, get_y, limiter, plane, scale_mask, vs
 )
 
 from .abstract import Antialiaser
@@ -253,12 +253,12 @@ else:
         if rfactor < 1.0:
             downscaler, supersampler = supersampler, downscaler
 
-        if mask and not isinstance(mask, vs.VideoNode):
-            mask_thr = scale_mask(min(mask_thr, 255), 8, func.work_clip)
-            mask = EdgeDetect.ensure_obj(mask, based_aa)
-            mask = mask.edgemask(plane(func.work_clip, 0))
-            mask = mask.std.Binarize(mask_thr)
-            mask = box_blur(mask.std.Maximum()).std.Limiter()
+        if not isinstance(mask, vs.VideoNode) and mask is not False:
+            mask = EdgeDetect.ensure_obj(mask, based_aa).edgemask(plane(func.work_clip, 0))
+            mask = mask.std.Binarize(scale_mask(min(mask_thr, 255), 8, func.work_clip))
+
+            mask = box_blur(mask.std.Maximum())
+            mask = limiter(mask, func=based_aa)
 
         if show_mask:
             return mask
