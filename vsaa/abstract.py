@@ -5,7 +5,7 @@ from dataclasses import field as dc_field
 from dataclasses import replace
 from itertools import zip_longest
 from math import ceil, log2
-from typing import Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, overload
 
 from vsexprtools import norm_expr
 from vskernels import Catrom, Kernel, KernelT, NoShift, Scaler, ScalerT
@@ -261,54 +261,56 @@ class Antialiaser(DoubleRater, SuperSampler):
         width, height = Scaler._wh_norm(clip, width, height)
         return SuperSampler.scale(self, clip, width, height, shift, **kwargs)
 
-    @overload
-    @inject_self.init_kwargs.clean
-    def aa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
-        ...
+    if TYPE_CHECKING:
+        @overload  # type: ignore[no-overload-impl]
+        @classmethod
+        def aa(cls, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
+            ...
 
-    @overload
-    @inject_self.init_kwargs.clean
-    def aa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
-        ...
+        @overload
+        @classmethod
+        def aa(cls, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
+            ...
+    else:
+        @inject_self.init_kwargs.clean
+        def aa(
+            self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
+        ) -> vs.VideoNode:
+            """Single rate aa with this antialiaser"""
 
-    @inject_self.init_kwargs.clean
-    def aa(
-        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
-    ) -> vs.VideoNode:
-        """Single rate aa with this antialiaser"""
+            if isinstance(y_or_dir, AADirection):
+                y, x = y_or_dir.to_yx()
+            else:
+                y = y_or_dir
 
-        if isinstance(y_or_dir, AADirection):
-            y, x = y_or_dir.to_yx()
-        else:
-            y = y_or_dir
+            clip = self.preprocess_clip(clip)
 
-        clip = self.preprocess_clip(clip)
+            return SingleRater._aa(self, clip, y, x, **kwargs)
 
-        return SingleRater._aa(self, clip, y, x, **kwargs)
+    if TYPE_CHECKING:
+        @overload  # type: ignore[no-overload-impl]
+        @classmethod
+        def draa(cls, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
+            ...
 
-    @overload
-    @inject_self.init_kwargs.clean
-    def draa(self, clip: vs.VideoNode, dir: AADirection = AADirection.BOTH, /, **kwargs: Any) -> vs.VideoNode:
-        ...
+        @overload
+        @classmethod
+        def draa(cls, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
+            ...
+    else:
+        @inject_self.init_kwargs.clean
+        def draa(
+            self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
+        ) -> vs.VideoNode:
+            """Double rate aa with this antialiaser"""
 
-    @overload
-    @inject_self.init_kwargs.clean
-    def draa(self, clip: vs.VideoNode, y: bool = True, x: bool = True, /, **kwargs: Any) -> vs.VideoNode:
-        ...
+            if isinstance(y_or_dir, AADirection):
+                y, x = y_or_dir.to_yx()
+            else:
+                y = y_or_dir
 
-    @inject_self.init_kwargs.clean
-    def draa(
-        self, clip: vs.VideoNode, y_or_dir: bool | AADirection = True, x: bool = True, /, **kwargs: Any
-    ) -> vs.VideoNode:
-        """Double rate aa with this antialiaser"""
+            clip = self.preprocess_clip(clip)
 
-        if isinstance(y_or_dir, AADirection):
-            y, x = y_or_dir.to_yx()
-        else:
-            y = y_or_dir
+            kwargs.pop('field', None)
 
-        clip = self.preprocess_clip(clip)
-
-        kwargs.pop('field', None)
-
-        return DoubleRater._aa(self, clip, y, x, **kwargs)
+            return DoubleRater._aa(self, clip, y, x, **kwargs)
