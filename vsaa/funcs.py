@@ -140,17 +140,18 @@ if TYPE_CHECKING:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] = ArtCNN.C16F64,
         double_rate: bool = False,
-        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
+        antialiaser: Antialiaser | None = None,
+        prefilter: vs.VideoNode | VSFunction | Literal[False] = False,
+        postfilter: VSFunction | Literal[False] | None = None,
         show_mask: bool = False, planes: PlanesT = 0,
-        **kwargs: Any
+        **aa_kwargs: Any
     ) -> vs.VideoNode:
         """
         Perform based anti-aliasing on a video clip.
 
-        This function works by super- or downsampling the clip and applying Eedi3 to that image.
+        This function works by super- or downsampling the clip and applying an antialiaser to that image.
         The result is then merged with the original clip using an edge mask, and it's limited
-        to areas where Eedi3 was actually applied.
+        to areas where the antialiaser was actually applied.
 
         Sharp supersamplers will yield better results, so long as they do not introduce too much ringing.
         For downscalers, you will want to use a neutral kernel.
@@ -163,7 +164,7 @@ if TYPE_CHECKING:
         :param mask:            Edge detection mask or function to generate it.  Default: Prewitt.
         :param mask_thr:        Threshold for edge detection mask. Must be less than or equal to 255.
                                 Only used if an EdgeDetect class is passed to `mask`. Default: 60.
-        :param pskip:           Whether to skip processing if EEDI3 had no contribution to the pixel's output.
+        :param pskip:           Whether to skip processing if antialiaser had no contribution to the pixel's output.
         :param downscaler:      Scaler used for downscaling after anti-aliasing. This should ideally be
                                 a relatively sharp kernel that doesn't introduce too much haloing.
                                 If None, downscaler will be set to Box if the scale factor is an integer
@@ -182,7 +183,8 @@ if TYPE_CHECKING:
                                 If True, both fields will be processed separately, which may improve
                                 anti-aliasing strength at the cost of increased processing time and detail loss.
                                 Default: False.
-        :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
+        :param antialiaser:     Antialiaser used for anti-aliasing. If None, EEDI3 will be selected with these default settings:
+                                (alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1).
         :param prefilter:       Prefilter to apply before anti-aliasing.
                                 Must be a VideoNode, a function that takes a VideoNode and returns a VideoNode,
                                 or False. Default: False.
@@ -208,11 +210,11 @@ else:
         downscaler: ScalerT | None = None,
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         double_rate: bool = False,
-        eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
+        antialiaser: Antialiaser | None = None,
         prefilter: vs.VideoNode | VSFunction | Literal[False] = False,
         postfilter: VSFunction | Literal[False] | None = None,
         show_mask: bool = False, planes: PlanesT = 0,
-        **kwargs: Any
+        **aa_kwargs: Any
     ) -> vs.VideoNode:
 
         func = FunctionUtil(clip, based_aa, planes, (vs.YUV, vs.GRAY))
@@ -277,15 +279,15 @@ else:
         downscaler = Scaler.ensure_obj(downscaler, based_aa)
 
         ss = supersampler.scale(ss_clip, aaw, aah)
-        mclip = Bilinear.scale(mask, ss.width, ss.height) if mask else None
 
-        eedi3 = Eedi3(mclip=mclip, sclip_aa=True)
-        eedi3_kwargs = (eedi3_kwargs or KwargsT()) | kwargs
+        if antialiaser is None:
+            antialiaser = Eedi3(mclip=Bilinear.scale(mask, ss.width, ss.height) if mask else None, sclip_aa=True)
+            aa_kwargs = KwargsT(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1) | aa_kwargs
 
         if double_rate:
-            aa = eedi3.draa(ss, **eedi3_kwargs)
+            aa = antialiaser.draa(ss, **aa_kwargs)
         else:
-            aa = eedi3.aa(ss, **eedi3_kwargs)
+            aa = antialiaser.aa(ss, **aa_kwargs)
 
         aa = downscaler.scale(aa, func.work_clip.width, func.work_clip.height)
 
