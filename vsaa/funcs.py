@@ -185,7 +185,7 @@ if TYPE_CHECKING:
         :param eedi3_kwargs:    Keyword arguments to pass on to EEDI3.
         :param prefilter:       Prefilter to apply before anti-aliasing.
                                 Must be a VideoNode, a function that takes a VideoNode and returns a VideoNode,
-                                or None. Default: None.
+                                or False. Default: False.
         :param postfilter:      Postfilter to apply after anti-aliasing.
                                 Must be a function that takes a VideoNode and returns a VideoNode, or None.
                                 If None, applies a median-filtered bilateral smoother to clean halos
@@ -209,7 +209,8 @@ else:
         supersampler: ScalerT | ShaderFile | Path | Literal[False] | MissingT = MISSING,
         double_rate: bool = False,
         eedi3_kwargs: KwargsT | None = dict(alpha=0.125, beta=0.25, vthresh0=12, vthresh1=24, field=1),
-        prefilter: vs.VideoNode | VSFunction | None = None, postfilter: VSFunction | None | Literal[False] = None,
+        prefilter: vs.VideoNode | VSFunction | Literal[False] = False,
+        postfilter: VSFunction | Literal[False] | None = None,
         show_mask: bool = False, planes: PlanesT = 0,
         **kwargs: Any
     ) -> vs.VideoNode:
@@ -262,14 +263,11 @@ else:
         if show_mask:
             return mask
 
-        if prefilter:
-            if isinstance(prefilter, vs.VideoNode):
-                FormatsMismatchError.check(based_aa, func.work_clip, prefilter)
-                ss_clip = prefilter
-            elif callable(prefilter):
-                ss_clip = prefilter(func.work_clip)
-            else:
-                raise CustomValueError('Invalid prefilter!', based_aa, prefilter)
+        if callable(prefilter):
+            ss_clip = prefilter(func.work_clip)
+        elif isinstance(prefilter, vs.VideoNode):
+            FormatsMismatchError.check(based_aa, func.work_clip, prefilter)
+            ss_clip = prefilter
         else:
             ss_clip = func.work_clip
 
@@ -290,10 +288,8 @@ else:
             aa_out = MeanMode.MEDIAN(aa, func.work_clip, bilateral(aa))
         elif callable(postfilter):
             aa_out = postfilter(aa)
-        elif postfilter is False:
-            aa_out = aa
         else:
-            raise CustomValueError('Invalid postfilter!', based_aa, postfilter)
+            aa_out = aa
 
         if pskip:
             no_aa = downscaler.scale(ss, func.work_clip.width, func.work_clip.height)
